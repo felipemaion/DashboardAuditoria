@@ -145,8 +145,18 @@ function fieldMeta(labelPt: string, labelEn: string, descriptionPt: string, desc
   };
 }
 
+function normalizeAliasForDisplay(alias: string): string {
+  return alias
+    .replace(/PerSOn/g, "Person")
+    .replace(/DescriPTion/g, "Description")
+    .replace(/SECtor/g, "Sector")
+    .replace(/mAX_/g, "Max_");
+}
+
 function humanizeAlias(alias: string): { pt: string; en: string } {
-  const tokens = alias
+  const normalizedAlias = normalizeAliasForDisplay(alias);
+
+  const tokens = normalizedAlias
     .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
     .replace(/[_-]+/g, " ")
     .replace(/\s+/g, " ")
@@ -1547,6 +1557,9 @@ const reportSemantics: Record<string, ReportSemanticDefinition> = {
       activityTupleCreatedIn: fieldMeta("Criada em", "Created on", "Data de criação da ação ligada à não conformidade.", "Creation date of the action linked to the non-conformity.", "Activity.Activity_TupleCreatedIn"),
       auditDepartmentDescription: fieldMeta("Departamento da auditoria", "Audit department", "Departamento vinculado à origem da não conformidade.", "Department linked to the non-conformity source.", "Department"),
       ActivityStagesDescription: fieldMeta("Status", "Status", "Etapa atual da ação corretiva no workflow.", "Current workflow stage of the corrective action.", "WorkflowStages.WorkflowStages_Description"),
+      auditAuditorPerSOnName: fieldMeta("Auditor", "Auditor", "Nome da pessoa auditora.", "Name of the auditor.", "Person.Person_Name"),
+      auditSECtorDescription: fieldMeta("Setor da auditoria", "Audit sector", "Setor vinculado à auditoria de origem.", "Sector linked to the source audit.", "Sector.Sector_Description"),
+      auditLevelDescriPTion: fieldMeta("Nível da auditoria", "Audit level", "Nível da auditoria vinculada à não conformidade.", "Audit level linked to the non-conformity.", "AuditLevel.AuditLevel_Description"),
     },
     concepts: [
       { conceptKey: "owner", field: "ActivityResponsiblePersonName", label: { "pt-BR": "Responsável", "en-US": "Owner" } },

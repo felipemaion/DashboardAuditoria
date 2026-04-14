@@ -41,12 +41,22 @@ function normalizeString(value: unknown): string {
   return String(value).trim();
 }
 
+function normalizeAliasForDisplay(alias: string): string {
+  return alias
+    .replace(/PerSOn/g, "Person")
+    .replace(/DescriPTion/g, "Description")
+    .replace(/SECtor/g, "Sector")
+    .replace(/mAX_/g, "Max_");
+}
+
 function getFieldLabel(fieldMeta: FieldMeta | undefined, locale: Locale, fallback: string): string {
   if (fieldMeta?.label[locale]) {
     return fieldMeta.label[locale];
   }
 
-  const humanizedFallback = fallback
+  const normalizedFallback = normalizeAliasForDisplay(fallback);
+
+  const humanizedFallback = normalizedFallback
     .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
     .replace(/[_-]+/g, " ")
     .replace(/\s+/g, " ")

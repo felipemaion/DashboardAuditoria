@@ -135,6 +135,72 @@ describe("reportExplorer state helpers", () => {
     );
   });
 
+  it("does not break malformed audit aliases into awkward PT-BR labels", () => {
+    const filters = buildFilterDefinitions(
+      "nao-conformidade",
+      [
+        {
+          auditAuditorPerSOnName: "Ana",
+          auditLevelDescriPTion: "L1",
+          auditSECtorDescription: "Qualidade",
+        },
+        {
+          auditAuditorPerSOnName: "Bruno",
+          auditLevelDescriPTion: "L2",
+          auditSECtorDescription: "Processos",
+        },
+      ],
+      "pt-BR",
+    );
+
+    expect(filters).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          field: "auditAuditorPerSOnName",
+          label: "Auditor",
+        }),
+        expect.objectContaining({
+          field: "auditLevelDescriPTion",
+          label: "Nível da auditoria",
+        }),
+        expect.objectContaining({
+          field: "auditSECtorDescription",
+          label: "Setor da auditoria",
+        }),
+      ]),
+    );
+  });
+
+  it("normalizes malformed occurrence aliases before building fallback labels", () => {
+    const filters = buildFilterDefinitions(
+      "ocorrencias-ff",
+      [
+        {
+          mAX_ImplementedDate_ICA: "2026-04-01",
+          mAX_ImplementedDate_PCA: "2026-04-02",
+        },
+        {
+          mAX_ImplementedDate_ICA: "2026-04-03",
+          mAX_ImplementedDate_PCA: "2026-04-04",
+        },
+      ],
+      "pt-BR",
+    );
+
+    expect(filters).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          field: "mAX_ImplementedDate_ICA",
+          label: "Max implementada data ica",
+        }),
+        expect.objectContaining({
+          field: "mAX_ImplementedDate_PCA",
+          label: "Max implementada data pca",
+        }),
+      ]),
+    );
+  });
+
   it("applies filters and paginates the filtered records", () => {
     const filteredRows = applyReportFilters(rows, {
       "Focus Factory": "FF-1",
