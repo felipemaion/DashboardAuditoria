@@ -393,6 +393,7 @@ Validacao:
 - trabalhar em branches curtas e objetivas
 - nome da branch deve refletir o objetivo
 - atualizar documentacao quando a mudanca alterar arquitetura, semantica, operacao ou regras de negocio
+- atualizar obrigatoriamente o `README.md` quando a mudanca impactar onboarding, setup, arquitetura, comandos, endpoints, estrutura do repositorio, fluxo principal da aplicacao ou modo de uso do produto
 - PR deve explicar objetivo, risco, validacao e impacto no usuario
 - se houver mudanca visual relevante, anexar evidencia quando possivel
 
@@ -407,7 +408,8 @@ Validacao:
 7. refatorar se preciso
 8. rodar lint, testes e build relevantes
 9. atualizar documentacao se houver impacto
-10. so entao preparar commit
+10. se a mudanca impactar onboarding, setup, arquitetura, comandos, endpoints, estrutura do projeto, fluxo principal ou modo de uso, atualizar obrigatoriamente o `README.md`
+11. so entao preparar commit
 
 ## Decisoes Consolidadas do Projeto
 
