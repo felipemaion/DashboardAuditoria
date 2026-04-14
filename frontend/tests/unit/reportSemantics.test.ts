@@ -108,6 +108,26 @@ describe("reportSemantics", () => {
     );
   });
 
+  it("returns curated metadata for malformed non-conformity audit aliases", () => {
+    expect(getFieldMeta("nao-conformidade", "auditAuditorPerSOnName")).toEqual(
+      expect.objectContaining({
+        label: {
+          "pt-BR": "Auditor",
+          "en-US": "Auditor",
+        },
+      }),
+    );
+
+    expect(getFieldMeta("nao-conformidade", "auditLevelDescriPTion")).toEqual(
+      expect.objectContaining({
+        label: {
+          "pt-BR": "Nível da auditoria",
+          "en-US": "Audit level",
+        },
+      }),
+    );
+  });
+
   it("builds charts for audit activities using the populated stage field", () => {
     const semanticView = getReportSemanticView(
       "atividades-de-auditoria",
