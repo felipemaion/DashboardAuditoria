@@ -92,7 +92,8 @@ describe("reportExplorer state helpers", () => {
         expect.objectContaining({
           field: "CustomRequesterName",
           label: "Custom solicitante nome",
-          description: "Use este campo para filtrar o relatório.",
+          description: "Campo custom solicitante nome disponível neste relatório.",
+          source: "CustomRequesterName",
         }),
       ]),
     );
@@ -124,11 +125,11 @@ describe("reportExplorer state helpers", () => {
         }),
         expect.objectContaining({
           field: "DocumentNumber",
-          label: "Número do documento",
+          label: "Document number",
         }),
         expect.objectContaining({
           field: "FailureOrigin",
-          label: "Falha origem",
+          label: "Failure origin",
         }),
       ]),
     );

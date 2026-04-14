@@ -1,6 +1,6 @@
 import * as d3 from "d3";
 import type { ReactNode } from "react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { getFieldMeta } from "../lib/reportSemantics";
 import { InfoTip } from "./InfoTip";
@@ -27,6 +27,7 @@ type ChartLabels = {
   chartLegendCount: string;
   chartLegendAverage: string;
   suggestedGrouping: string;
+  chartGroupingLabel: string;
 };
 
 type ChartProps = {
@@ -65,6 +66,33 @@ function formatLabelValue(value: unknown): string {
   }
 
   return String(value);
+}
+
+function getGroupingCandidates(rows: ReportRecord[], preferredField: string): string[] {
+  if (rows.length === 0) {
+    return [preferredField];
+  }
+
+  const orderedFields = Object.keys(rows[0] ?? {});
+  const candidates = orderedFields.filter((field) => {
+    const values = rows
+      .map((row) => row[field])
+      .filter((value) => value !== null && value !== undefined && value !== "")
+      .map((value) => String(value).trim());
+
+    if (values.length === 0) {
+      return false;
+    }
+
+    const uniqueCount = new Set(values).size;
+    return uniqueCount >= 2 && uniqueCount <= 12;
+  });
+
+  if (candidates.includes(preferredField)) {
+    return [preferredField, ...candidates.filter((field) => field !== preferredField)];
+  }
+
+  return [preferredField, ...candidates].filter((field, index, list) => list.indexOf(field) === index);
 }
 
 function aggregateByCategory(
@@ -119,11 +147,13 @@ function ChartFrame({
   title,
   subtitle,
   tooltip,
+  actions,
   children,
 }: {
   title: string;
   subtitle: string;
   tooltip: string;
+  actions?: ReactNode;
   children: ReactNode;
 }) {
   return (
@@ -136,6 +166,7 @@ function ChartFrame({
           </h4>
           <p>{subtitle}</p>
         </div>
+        {actions ? <div className="chart-card-actions">{actions}</div> : null}
       </div>
       {children}
     </section>
@@ -150,6 +181,7 @@ function PieChart({
   labels,
   onDrillDown,
   categoryField,
+  actions,
 }: {
   title: string;
   subtitle: string;
@@ -158,38 +190,53 @@ function PieChart({
   labels: ChartLabels;
   onDrillDown?: (filter: { field: string; value: string }) => void;
   categoryField: string;
+  actions?: ReactNode;
 }) {
   const [activeSlice, setActiveSlice] = useState<string | null>(null);
+  const totalCount = useMemo(
+    () => data.reduce((accumulator, datum) => accumulator + datum.count, 0),
+    [data],
+  );
 
   const arcs = useMemo(() => {
     const pie = d3.pie<AggregatedDatum>().value((datum) => datum.count).sort(null);
     return pie(data);
   }, [data]);
 
-  const arcGenerator = d3.arc<d3.PieArcDatum<AggregatedDatum>>().innerRadius(52).outerRadius(92);
+  const arcGenerator = d3.arc<d3.PieArcDatum<AggregatedDatum>>().innerRadius(56).outerRadius(98);
   const colorScale = d3.scaleOrdinal<string>().domain(data.map((datum) => datum.label)).range(d3.schemeTableau10);
 
   return (
-    <ChartFrame title={title} subtitle={subtitle} tooltip={tooltip}>
+    <ChartFrame title={title} subtitle={subtitle} tooltip={tooltip} actions={actions}>
       {data.length === 0 ? (
         <p className="status-copy">{labels.chartNoData}</p>
       ) : (
         <div className="chart-layout">
-          <svg className="chart-svg" viewBox="0 0 240 240" role="img" aria-label={labels.chartPie}>
-            <g transform="translate(120,120)">
+          <div className="chart-pie-shell">
+            <svg className="chart-svg chart-svg-pie" viewBox="0 0 260 260" role="img" aria-label={labels.chartPie}>
+              <g transform="translate(130,130)">
               {arcs.map((arc) => (
                 <path
                   key={arc.data.label}
                   d={arcGenerator(arc) ?? ""}
                   fill={colorScale(arc.data.label)}
+                  stroke="rgba(15, 23, 42, 0.95)"
+                  strokeWidth={2}
                   opacity={activeSlice && activeSlice !== arc.data.label ? 0.35 : 1}
                   onMouseEnter={() => setActiveSlice(arc.data.label)}
                   onMouseLeave={() => setActiveSlice(null)}
                   onClick={() => onDrillDown?.({ field: categoryField, value: arc.data.label })}
                 />
               ))}
-            </g>
-          </svg>
+                <text className="chart-pie-total-value" textAnchor="middle" y="-4">
+                  {totalCount}
+                </text>
+                <text className="chart-pie-total-label" textAnchor="middle" y="16">
+                  Total
+                </text>
+              </g>
+            </svg>
+          </div>
           <div className="chart-legend">
             {data.map((datum) => (
               <button
@@ -205,7 +252,10 @@ function PieChart({
                   style={{ backgroundColor: colorScale(datum.label) }}
                 />
                 <span>
-                  {datum.label}: {datum.count}
+                  {datum.label}: {datum.count}{" "}
+                  <strong>
+                    ({totalCount > 0 ? Math.round((datum.count / totalCount) * 100) : 0}%)
+                  </strong>
                 </span>
               </button>
             ))}
@@ -389,16 +439,35 @@ function ComboChart({
 }
 
 export function ReportCharts({ reportId, rows, suggestion, labels, locale, onDrillDown }: ChartProps) {
+  const groupingCandidates = useMemo(
+    () => getGroupingCandidates(rows, suggestion.categoryField),
+    [rows, suggestion.categoryField],
+  );
+  const [selectedPieGrouping, setSelectedPieGrouping] = useState(suggestion.categoryField);
+
+  useEffect(() => {
+    if (suggestion.chartType !== "pie") {
+      return;
+    }
+
+    setSelectedPieGrouping((currentGrouping) =>
+      groupingCandidates.includes(currentGrouping) ? currentGrouping : suggestion.categoryField,
+    );
+  }, [groupingCandidates, suggestion.categoryField, suggestion.chartType]);
+
+  const effectiveCategoryField =
+    suggestion.chartType === "pie" ? selectedPieGrouping : suggestion.categoryField;
+
   const chartData = useMemo(() => {
     if (suggestion.chartType === "combo" && suggestion.dateField) {
       return aggregateByDate(rows, suggestion.dateField, suggestion.valueField);
     }
 
-    return aggregateByCategory(rows, suggestion.categoryField, suggestion.valueField);
-  }, [rows, suggestion]);
+    return aggregateByCategory(rows, effectiveCategoryField, suggestion.valueField);
+  }, [effectiveCategoryField, rows, suggestion]);
 
   const categoryLabel =
-    getFieldMeta(reportId, suggestion.categoryField)?.label[locale] ?? suggestion.categoryField;
+    getFieldMeta(reportId, effectiveCategoryField)?.label[locale] ?? effectiveCategoryField;
   const valueLabel = suggestion.valueField
     ? getFieldMeta(reportId, suggestion.valueField)?.label[locale] ?? suggestion.valueField
     : null;
@@ -422,8 +491,26 @@ export function ReportCharts({ reportId, rows, suggestion, labels, locale, onDri
         data={chartData}
         labels={labels}
         tooltip={tooltip}
-        categoryField={suggestion.categoryField}
+        categoryField={effectiveCategoryField}
         onDrillDown={onDrillDown}
+        actions={
+          <label className="chart-grouping-control">
+            <span>{labels.chartGroupingLabel}</span>
+            <select
+              value={selectedPieGrouping}
+              onChange={(event) => setSelectedPieGrouping(event.target.value)}
+            >
+              {groupingCandidates.map((field) => {
+                const fieldLabel = getFieldMeta(reportId, field)?.label[locale] ?? field;
+                return (
+                  <option key={field} value={field}>
+                    {fieldLabel}
+                  </option>
+                );
+              })}
+            </select>
+          </label>
+        }
       />
     );
   }

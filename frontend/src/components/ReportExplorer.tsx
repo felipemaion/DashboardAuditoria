@@ -975,7 +975,7 @@ export function ReportExplorer({ locale }: { locale: Locale }) {
                   {semanticView.charts.map((suggestion) => (
                     <ReportCharts
                       reportId={deferredReportId ?? ""}
-                      key={suggestion.id}
+                      key={`${deferredReportId ?? "unknown"}-${suggestion.id}`}
                       rows={filteredRows}
                       suggestion={suggestion}
                       labels={dictionary}
@@ -1045,6 +1045,7 @@ export function ReportExplorer({ locale }: { locale: Locale }) {
                         const isVisible = visibleTableColumns.includes(column);
                         const columnMeta = getFieldMeta(deferredReportId ?? "", column);
                         const columnLabel = columnMeta?.label[locale] ?? column;
+                        const columnSource = columnMeta?.source ?? column;
 
                         return (
                           <button
@@ -1052,6 +1053,7 @@ export function ReportExplorer({ locale }: { locale: Locale }) {
                             key={column}
                             className={`column-chip ${isVisible ? "column-chip-active" : ""}`}
                             aria-pressed={isVisible}
+                            title={columnSource}
                             aria-label={`${
                               isVisible ? dictionary.hideColumn : dictionary.showColumn
                             } ${column} (${columnLabel})`}

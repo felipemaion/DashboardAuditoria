@@ -101,6 +101,8 @@ type Dictionary = {
   pinColumn: string;
   unpinColumn: string;
   frozenColumn: string;
+  chartGroupingLabel: string;
+  chartGroupingPlaceholder: string;
 };
 
 export const translations: Record<Locale, Dictionary> = {
@@ -213,6 +215,8 @@ export const translations: Record<Locale, Dictionary> = {
     pinColumn: "Fixar coluna",
     unpinColumn: "Desafixar coluna",
     frozenColumn: "Coluna fixa",
+    chartGroupingLabel: "Agrupar por",
+    chartGroupingPlaceholder: "Selecione o agrupamento",
   },
   "en-US": {
     appEyebrow: "Magna Analytics Platform",
@@ -323,5 +327,7 @@ export const translations: Record<Locale, Dictionary> = {
     pinColumn: "Pin column",
     unpinColumn: "Unpin column",
     frozenColumn: "Pinned column",
+    chartGroupingLabel: "Group by",
+    chartGroupingPlaceholder: "Select grouping",
   },
 };
