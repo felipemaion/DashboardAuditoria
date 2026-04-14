@@ -121,7 +121,7 @@ def get_report_catalog(report_definitions: list[ReportDefinition]) -> list[Repor
 
 def build_paginated_report_query(base_query: str) -> str:
     normalized_query = base_query.strip().rstrip(";").replace("%", "%%")
-    return f"SELECT * FROM ({normalized_query}) AS report_rows LIMIT %s OFFSET %s"  # noqa: S608
+    return f"SELECT * FROM ({normalized_query}) AS report_rows LIMIT %s OFFSET %s"  # noqa: S608  # nosec B608
 
 
 def load_report_sql(report_definition: ReportDefinition) -> str:

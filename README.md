@@ -374,6 +374,37 @@ npm run test --prefix frontend
 npm run build --prefix frontend
 ```
 
+## Integracao com GitHub
+
+O repositorio agora possui um workflow de CI em:
+
+```text
+.github/workflows/ci.yml
+```
+
+Esse workflow roda automaticamente em:
+
+- `pull_request` para `main`
+- `push` para `main`
+
+Checks executados no GitHub:
+
+- backend:
+  - `ruff check backend`
+  - `ruff format --check backend`
+  - `mypy backend/app`
+  - `pytest backend/tests`
+  - `bandit -r backend/app`
+- frontend:
+  - `npm run lint`
+  - `npm run test`
+  - `npm run build`
+
+Importante:
+
+- para impedir que novos codigos sejam aceitos sem passar nos testes, a branch `main` deve ter protecao no GitHub com `Require status checks to pass before merging`
+- como essa configuracao de branch protection depende da interface/permissoes do GitHub, o workflow ja esta pronto no repositorio, mas a exigencia do merge deve ser habilitada nas configuracoes do repositorio
+
 ### Atalhos
 
 Lint geral:
