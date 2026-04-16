@@ -70,11 +70,53 @@ Source SQL: `database/views/mysql/auditorias_planejadas.sql`
 ### `atividades-de-auditoria`
 
 - Business grain:
-  activity records already associated with audit answers and audit context.
+  one row per activity linked to an audit answer, enriched with full audit context.
+  Activities without an audit answer are excluded (`Activity_AuditAnswerCode IS NOT NULL`).
+  Logically deleted activities and audits are excluded (`Activity_TupleExcluded = 0`, `Audit_TupleExcluded = 0`).
+  Workflow stage: only the most recent active stage per activity (deduplication via `MAX(ActivityWorkflowStages_Code)` — no fanout).
 - Main technical anchors:
-  `activityCode`, `auditCode`, `activityAuditAnswerCode`, `typeAuditCode`, `auditLevelCode`.
+  `activityCode`, `auditCode`, `activityAuditAnswerCode` (inner only), `typeAuditCode` (inner only), `auditLevelCode` (inner only).
+- Exposed fields (outer SELECT — 28 columns):
+
+  | Field | Semantic type | Notes |
+  |---|---|---|
+  | `activityCode` | Key | Primary activity identifier |
+  | `activityTitle` | Text | Activity title |
+  | `activityDetail` | Text | Detail with HTML stripped |
+  | `activityTupleCreatedIn` | Date | Record creation timestamp |
+  | `activityImplementedDate` | Date | Implementation date |
+  | `activitySectorDescription` | Dimension | Sector of the activity |
+  | `activityCompanyCorporateName` | Dimension | Company via activity context |
+  | `ActivityStagesDescription` | Status | Most recent active workflow stage |
+  | `activityUrl` | Link | Deep link to activity edit page |
+  | `auditCode` | Key | Primary audit identifier |
+  | `auditCompanyCorporateName` | Dimension | Company via audit context |
+  | `auditTypeAuditDescription` | Dimension | Audit type |
+  | `auditAuditorPersonName` | Person | Auditor name |
+  | `auditResponsiblePersonName` | Person | Responsible person for the audit |
+  | `auditDepartmentDescription` | Dimension | Department of the audit |
+  | `auditSectorDescription` | Dimension | Sector of the audit |
+  | `auditIndustrialMachineDescription` | Dimension | Industrial machine linked to audit |
+  | `auditLevelDescription` | Dimension | Audit level |
+  | `ActivityRequesterPersonName` | Person | Requester from most recent workflow stage |
+  | `ActivityResponsiblePersonName` | Person | Responsible from most recent workflow stage |
+  | `auditScore` | Metric | Final audit score |
+  | `auditStatus` | Status | Audit status code |
+  | `auditEndDate` | Date | Audit end date |
+  | `auditPlannedDate` | Date | Audit planned date |
+  | `activityDeadline` | Date | Activity deadline |
+  | `activityPlannedDate` | Date | Activity planned date |
+  | `activityClosed` | Status | Whether the activity is closed |
+  | `activityFailed` | Status | Whether the activity is marked as failed |
+
 - Typical business use:
-  audit-driven action tracking, workflow stage visibility, responsible/requester visibility.
+  audit-driven corrective action tracking; workflow stage visibility; score and deadline monitoring per audit cycle.
+- Correlations:
+  - `auditorias-realizadas`: join on `auditCode`
+  - `auditorias-planejadas`: join via `auditAuditingPlanningCode` (available in inner query only)
+  - `nao-conformidade`: strong overlap via `activityCode`, `activityOccurrenceCode`, `auditCode`
+  - `atividades-completas`: `atividades-de-auditoria` is a filtered subset; join on `activityCode`
+  - `ocorrencias-*`: indirect via `activityOccurrenceCode` (available in inner query only)
 
 ### `auditorias-planejadas`
 

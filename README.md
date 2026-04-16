@@ -321,11 +321,13 @@ O frontend foi desenhado para combinacao de visao executiva com detalhamento ope
 
 - navegacao por relatorio
 - suporte a relatorios bloqueados por permissao
-- KPIs
-- graficos de pizza, barra e barra + linha
-- sugestoes de correlacao
-- filtros analiticos
-- tabela detalhada
+- KPIs analiticos com calculo sobre o recorte atual
+- graficos de pizza, barra, barra + linha, funil, heatmap, gauge, barra agrupada, barra horizontal e linha de tendencia com media movel
+- sugestoes de correlacao interna e entre relatorios
+- filtros analiticos com labels semanticos
+- seletor de periodo temporal (Mes, Trimestre, YTD) vinculado ao campo data principal de cada relatorio
+- toggle para ocultar colunas tecnicas (FK, GUID, codigos internos) da visualizacao principal
+- tabela detalhada com paginacao
 - ordenacao por cabecalho
 - redimensionamento de colunas
 - ocultacao e exibicao de colunas
@@ -333,6 +335,52 @@ O frontend foi desenhado para combinacao de visao executiva com detalhamento ope
 - exportacao CSV
 - tooltips com explicacoes e fonte do campo
 - alternancia de idioma PT-BR e EN-US
+
+### Relatorio Atividades de Auditoria
+
+O relatorio `atividades-de-auditoria` foi aprimorado com KPIs analiticos especializados, correcao de aliases SQL e maior cobertura semantica de campos. As melhorias seguem as referencias normativas da industria automotiva: IATF 16949 6a Ed., VDA 6.3, ISO 9001 e WCM.
+
+#### 6 KPIs analiticos especializados
+
+| ID | Titulo PT-BR | O que mede |
+|---|---|---|
+| `score-by-type-level` | Score medio de auditoria | Media do campo `auditScore` no recorte atual, agrupavel por tipo e nivel |
+| `sla-15-60` | Distribuicao de SLA | Proporcao de acoes implementadas em ate 15 dias, entre 15-60 dias e acima de 60 dias |
+| `trend-target` | Progresso vs meta | Percentual de acoes com `activityImplementedDate` preenchido em relacao ao total |
+| `workflow-funnel` | Funil de estagios | Estagio do workflow com maior volume de acoes no recorte |
+| `sector-level-heatmap` | Pares setor x nivel | Quantidade de combinacoes unicas de setor e nivel de auditoria |
+| `top-machines` | Maquina principal | Maquina industrial com maior ocorrencia de auditorias no recorte |
+
+Os limiares de SLA (15 dias e 60 dias) refletem praticas operacionais alinhadas ao VDA 6.3 para tratamento de desvios de auditoria.
+
+#### 8 novos campos expostos com metadado semantico
+
+| Campo SQL | Label PT-BR | Fonte |
+|---|---|---|
+| `auditScore` | Score da auditoria | `Audit.Audit_Score` |
+| `auditTotalAnswers` | Total de respostas | `Audit.Audit_TotalAnswers` |
+| `auditTotalAnswerAvaliation` | Respostas avaliadas | `Audit.Audit_TotalAnswerAvaliation` |
+| `auditAnswerAvaliationStatus` | Status de avaliacao | `AuditAnswer.AuditAnswer_AvaliationStatus` |
+| `activityPriority` | Prioridade | `Activity.Activity_Priority` |
+| `activityComplexity` | Complexidade | `Activity.Activity_Complexity` |
+| `activityCompletionLevel` | Nivel de conclusao | `Activity.Activity_CompletionLevel` |
+| `activityCancellationDate` | Data de cancelamento | `Activity.Activity_CancellationDate` |
+
+#### 3 aliases SQL corrigidos
+
+Os campos abaixo chegavam com aliases com typos provenientes das views SQL legadas. A camada semantica agora normaliza os nomes antes de exibir:
+
+| Alias com typo | Alias correto | Label |
+|---|---|---|
+| `auditAuditorPerSOnName` | `auditAuditorPersonName` | Auditor |
+| `auditSECtorDescription` | `auditSectorDescription` | Setor da auditoria |
+| `auditLevelDescriPTion` | `auditLevelDescription` | Nivel da auditoria |
+
+A correcao permanente dos aliases foi aplicada no SQL legado (`atividades_de_auditoria.sql`). A camada semantica mantem mapeamento de fallback via normalizacao de alias para compatibilidade.
+
+#### Colunas FK e GUID ocultaveis por padrao
+
+A funcao `getDefaultHiddenColumns("atividades-de-auditoria")` retorna 19 colunas de chave estrangeira e GUID (ex: `activityGuid`, `auditContextCode`, `auditSectorCode`) que nao tem valor para o usuario final. Essas colunas podem ser ocultadas pelo toggle "Ver campos tecnicos" na interface.
 
 ### Semantica e Dicionario de Dados
 
@@ -458,6 +506,15 @@ Antes de commitar:
 - valide parametros no backend
 - minimize dados sensiveis enviados ao frontend
 - revise dependencias e mantenha as ferramentas de analise em dia
+
+## Referencias Normativas
+
+Os KPIs e analises do relatorio `atividades-de-auditoria` foram projetados com base nas seguintes normas e metodologias da industria automotiva:
+
+- **IATF 16949 6a Ed.** — sistema de gestao da qualidade para a cadeia de fornecedores automotivos; orienta o acompanhamento de acoes corretivas, auditorias internas e indicadores de desempenho
+- **VDA 6.3** — metodologia de auditoria de processo do setor automotivo; define bandas de score (A, B, C) que correspondem a faixas de desempenho quantitativas
+- **ISO 9001** — referencia geral de gestao da qualidade; base para acompanhamento de nao conformidades e ciclos PDCA
+- **WCM (World Class Manufacturing)** — metodologia de producao enxuta e melhoria continua; fundamenta o monitoramento de SLA de acoes e eficiencia operacional
 
 ## Roadmap Sugerido
 
