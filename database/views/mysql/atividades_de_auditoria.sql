@@ -1,18 +1,25 @@
 
-SELECT 
- activityCode, activityTitle, activityDetail, activityTupleCreatedIn, activityImplementedDate, activitySectorDescription,
- activityCompanyCorporateName, ActivityStagesDescription,activityUrl,
- auditCode,
-auditCompanyCorporateName,auditTypeAuditDescription,auditAuditorPerSOnName,auditResponsiblePersonName,auditDepartmentDescription,
-auditSECtorDescription,auditIndustrialMachineDescription,auditLevelDescriPTion, ActivityRequesterPersonName, ActivityResponsiblePersonName
+SELECT DISTINCT
+  activityCode, activityTitle, activityDetail, activityTupleCreatedIn, activityImplementedDate, activitySectorDescription,
+  activityCompanyCorporateName, ActivityStagesDescription, activityUrl,
+  auditCode,
+  auditCompanyCorporateName, auditTypeAuditDescription, auditAuditorPersonName, auditResponsiblePersonName, auditDepartmentDescription,
+  auditSectorDescription, auditIndustrialMachineDescription, auditLevelDescription,
+  ActivityRequesterPersonName, ActivityResponsiblePersonName,
+  auditScore, auditStatus, auditEndDate, auditPlannedDate,
+  activityDeadline, activityPlannedDate, activityClosed, activityFailed
 
- 
 FROM
 (
 
 /* =========================================================
    ACTIVITIES + AUDITANSWER + AUDIT (NOMES PADRONIZADOS, SEM DUPLICIDADE)
    Ajuste para Context -> Company.Company_CorporateName
+
+   Grão: uma linha por atividade vinculada a uma resposta de auditoria.
+   Filtros de exclusão lógica ativos (Activity e Audit).
+   Stage de workflow: apenas o mais recente por atividade (MAX Code),
+   eliminando fanout de ActivityWorkflowStages.
    ========================================================= */
 
 SELECT
@@ -165,7 +172,7 @@ SELECT
   Dept.Department_Description              AS auditDepartmentDescription,
   SecA.Sector_Description                  AS auditSectorDescription,
   IM.IndustrialMachine_Description         AS auditIndustrialMachineDescription,
-  ALv.AuditLevel_Description               AS auditLevelDescription,                   
+  ALv.AuditLevel_Description               AS auditLevelDescription,
 
   /* -------------------------
      Relacionados ao AuditAnswer
@@ -174,19 +181,19 @@ SELECT
   SFO.SmartFormSectionsFieldsOptions_Description  AS auditAnswerOptionDescription,
 --  SF.SmartFormSections_Description                AS auditAnswerSectionDescription,
   -- auditAnswerScore,
- `SmartFormSectionsFieldsOptions_Value`,
- 
- /* -------------------------
+  `SmartFormSectionsFieldsOptions_Value`,
+
+  /* -------------------------
      Relacionados ao WorkFlow
      ------------------------- */
   aws.ActivityWorkflowStages_WorkflowStagesCode AS ActivityStagesCode,
-       w.WorkflowStages_Description AS ActivityStagesDescription        ,
- 
- /* -------------------------
+  w.WorkflowStages_Description                  AS ActivityStagesDescription,
+
+  /* -------------------------
      Relacionados ao Solicitante e Responsavel da Atividade
-     ------------------------- */      
-CONCAT(pr_req.Person_Name,' ',pr_req.Person_LastName) AS ActivityRequesterPersonName  ,    
-CONCAT(pr.Person_Name,' ',pr.Person_LastName) AS ActivityResponsiblePersonName   
+     ------------------------- */
+  CONCAT(pr_req.Person_Name, ' ', pr_req.Person_LastName) AS ActivityRequesterPersonName,
+  CONCAT(pr.Person_Name, ' ', pr.Person_LastName)         AS ActivityResponsiblePersonName
 
 FROM Activity A
 LEFT JOIN AuditAnswer AA
@@ -234,16 +241,32 @@ LEFT JOIN SmartFormSectionFields            SFS ON SFS.SmartFormSectionFields_Co
 LEFT JOIN SmartFormSectionsFieldsOptions    SFO ON SFO.SmartFormSectionsFieldsOptions_Code = AA.AuditAnswer_SmartFormSectionsFieldsOptionsCode
 LEFT JOIN SmartFormSections                 SF  ON SF.SmartFormSections_Code               = SFS.SmartFormSections_Code
 
+/* ===== Relacionados ao Workflow e Stage (stage mais recente por atividade) =====
+   Deduplicação via MAX(ActivityWorkflowStages_Code): garante 1 linha por atividade.
+   Critério: registro mais recente (maior Code) entre os stages ativos (TupleExcluded = 0).
+   =============================================================================== */
+LEFT JOIN (
+  SELECT
+    aws_i.ActivityWorkflowStages_ActivityCode,
+    aws_i.ActivityWorkflowStages_WorkflowStagesCode,
+    aws_i.ActivityWorkflowStages_ResponsiblePersonCode,
+    aws_i.ActivityWorkflowStages_RequesterPersonCode
+  FROM ActivityWorkflowStages aws_i
+  WHERE aws_i.ActivityWorkflowStages_TupleExcluded = 0
+    AND aws_i.ActivityWorkflowStages_Code = (
+      SELECT MAX(aws_j.ActivityWorkflowStages_Code)
+      FROM ActivityWorkflowStages aws_j
+      WHERE aws_j.ActivityWorkflowStages_ActivityCode = aws_i.ActivityWorkflowStages_ActivityCode
+        AND aws_j.ActivityWorkflowStages_TupleExcluded = 0
+    )
+) aws ON aws.ActivityWorkflowStages_ActivityCode = A.Activity_Code
+LEFT JOIN WorkflowStages w   ON w.WorkflowStages_Code = aws.ActivityWorkflowStages_WorkflowStagesCode
+LEFT JOIN Workflow ww        ON ww.Workflow_Code = w.Workflow_Code
 
-/* ===== Relacionados ao Workflow e Stage ===== */
-LEFT JOIN ActivityWorkflowStages aws   ON aws.ActivityWorkflowStages_ActivityCode = A.Activity_Code  AND aws.ActivityWorkflowStages_TupleExcluded = 0
-LEFT JOIN WorkflowStages w  ON w.WorkflowStages_Code = aws.ActivityWorkflowStages_WorkflowStagesCode
-LEFT JOIN Workflow ww   ON ww.Workflow_Code = w.Workflow_Code 
+LEFT JOIN Person pr     ON aws.ActivityWorkflowStages_ResponsiblePersonCode = pr.Person_Code
+LEFT JOIN Person pr_req ON aws.ActivityWorkflowStages_RequesterPersonCode   = pr_req.Person_Code
 
-
-LEFT JOIN Person pr ON aws.`ActivityWorkflowStages_ResponsiblePersonCode`  = pr.Person_Code
-LEFT JOIN Person pr_req ON aws.`ActivityWorkflowStages_RequesterPersonCode` = pr_req.Person_Code
 WHERE A.Activity_AuditAnswerCode IS NOT NULL
--- AND A.Activity_TupleExcluded = 0
--- AND AU.Audit_TupleExcluded = 0
+AND A.Activity_TupleExcluded = 0
+AND AU.Audit_TupleExcluded = 0
 ) a
