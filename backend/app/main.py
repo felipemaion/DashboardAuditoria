@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from backend.app.api.routes.health import router as health_router
 from backend.app.api.routes.reports import router as reports_router
@@ -11,6 +12,13 @@ def create_application() -> FastAPI:
         title="Dashboard Magna API",
         debug=settings.api_debug,
         version="0.1.0",
+    )
+    application.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.api_cors_origins,
+        allow_credentials=True,
+        allow_methods=["GET"],
+        allow_headers=["*"],
     )
     application.include_router(health_router, prefix="/api/v1")
     application.include_router(reports_router, prefix="/api/v1")
