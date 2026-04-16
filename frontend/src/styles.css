@@ -787,6 +787,7 @@ body {
   gap: 0.35rem;
   min-width: 0;
   align-content: start;
+  align-self: start;
   overflow: hidden;
 }
 
@@ -810,6 +811,91 @@ body {
   padding: 0.58rem 0.76rem;
   font: inherit;
   font-size: 0.95rem;
+}
+
+.filter-field input[type="date"] {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 14px;
+  background: rgba(15, 23, 42, 0.9);
+  color: inherit;
+  padding: 0.58rem 0.76rem;
+  font: inherit;
+  font-size: 0.95rem;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.filter-field-date-range {
+  grid-column: span 2;
+  align-self: stretch;
+}
+
+.date-range-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  align-items: end;
+}
+
+.date-range-input {
+  display: grid;
+  gap: 0.3rem;
+  min-width: 0;
+  align-content: start;
+}
+
+.date-range-input small {
+  color: rgba(243, 239, 231, 0.66);
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+}
+
+.period-selector {
+  display: grid;
+  gap: 0.4rem;
+  margin-top: 0.55rem;
+}
+
+.period-selector small {
+  color: rgba(243, 239, 231, 0.66);
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
+}
+
+.period-buttons {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.period-btn {
+  cursor: pointer;
+  padding: 0.3rem 0.7rem;
+  border-radius: 8px;
+  border: 1px solid rgba(243, 239, 231, 0.22);
+  background: transparent;
+  color: rgba(243, 239, 231, 0.75);
+  font-size: 0.82rem;
+  transition: background 160ms ease, border-color 160ms ease;
+}
+
+.period-btn:hover {
+  background: rgba(243, 239, 231, 0.08);
+  border-color: rgba(243, 239, 231, 0.38);
+}
+
+.period-btn-active {
+  background: rgba(96, 165, 250, 0.18);
+  border-color: rgba(96, 165, 250, 0.55);
+  color: #93c5fd;
+}
+
+.secondary-button-active {
+  background: rgba(96, 165, 250, 0.15);
+  border-color: rgba(96, 165, 250, 0.5);
+  color: #93c5fd;
 }
 
 .filter-field select,
@@ -1367,6 +1453,12 @@ option {
   }
 
   .chart-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .filter-field-date-range,
+  .date-range-grid {
+    grid-column: auto;
     grid-template-columns: 1fr;
   }
 

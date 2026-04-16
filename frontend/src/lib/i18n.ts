@@ -103,6 +103,38 @@ type Dictionary = {
   frozenColumn: string;
   chartGroupingLabel: string;
   chartGroupingPlaceholder: string;
+  dateRangeLabel: string;
+  dateFromLabel: string;
+  dateToLabel: string;
+  dateRangeHelp: string;
+  periodSelectorLabel: string;
+  vdaBandA: string;
+  vdaBandB: string;
+  vdaBandC: string;
+  slaThreshold15: string;
+  slaThreshold60: string;
+  slaAlert: string;
+  withinSlaLabel: string;
+  overSlaLabel: string;
+  movingAverageLabel: string;
+  targetLineLabel: string;
+  emptyStateNoData: string;
+  showTechnicalFields: string;
+  hideTechnicalFields: string;
+  technicalFieldsHidden: string;
+  auditScoreLabel: string;
+  completionLevelLabel: string;
+  drillDownTableTitle: string;
+  periodoMes: string;
+  periodoTrimestre: string;
+  periodoYtd: string;
+  emptyImplementedDate: string;
+  kpiScoreByTypeLevel: string;
+  kpiSla: string;
+  kpiTrend: string;
+  kpiFunnel: string;
+  kpiHeatmap: string;
+  kpiTopMachines: string;
 };
 
 export const translations: Record<Locale, Dictionary> = {
@@ -217,6 +249,38 @@ export const translations: Record<Locale, Dictionary> = {
     frozenColumn: "Coluna fixa",
     chartGroupingLabel: "Agrupar por",
     chartGroupingPlaceholder: "Selecione o agrupamento",
+    dateRangeLabel: "Período",
+    dateFromLabel: "De",
+    dateToLabel: "Até",
+    dateRangeHelp: "Filtra ocorrências e registros entre duas datas usando o campo principal de data do relatório.",
+    periodSelectorLabel: "Período temporal",
+    vdaBandA: "Classe A",
+    vdaBandB: "Classe B",
+    vdaBandC: "Classe C",
+    slaThreshold15: "15 dias",
+    slaThreshold60: "60 dias",
+    slaAlert: "Prazo crítico",
+    withinSlaLabel: "Dentro do SLA",
+    overSlaLabel: "Acima de 60d",
+    movingAverageLabel: "Média móvel",
+    targetLineLabel: "Meta",
+    emptyStateNoData: "Sem dados para este recorte.",
+    showTechnicalFields: "Ver campos técnicos",
+    hideTechnicalFields: "Ocultar campos técnicos",
+    technicalFieldsHidden: "Campos técnicos ocultos",
+    auditScoreLabel: "Score médio",
+    completionLevelLabel: "Nível de conclusão",
+    drillDownTableTitle: "Detalhamento",
+    periodoMes: "Mês",
+    periodoTrimestre: "Trimestre",
+    periodoYtd: "YTD",
+    emptyImplementedDate: "Sem data de implementação",
+    kpiScoreByTypeLevel: "Score médio de auditoria",
+    kpiSla: "Distribuição de SLA",
+    kpiTrend: "Progresso vs meta",
+    kpiFunnel: "Funil de estágios",
+    kpiHeatmap: "Pares setor × nível",
+    kpiTopMachines: "Máquina principal",
   },
   "en-US": {
     appEyebrow: "Magna Analytics Platform",
@@ -329,5 +393,37 @@ export const translations: Record<Locale, Dictionary> = {
     frozenColumn: "Pinned column",
     chartGroupingLabel: "Group by",
     chartGroupingPlaceholder: "Select grouping",
+    dateRangeLabel: "Date range",
+    dateFromLabel: "From",
+    dateToLabel: "To",
+    dateRangeHelp: "Filters occurrences and records between two dates using the report main date field.",
+    periodSelectorLabel: "Time period",
+    vdaBandA: "Class A",
+    vdaBandB: "Class B",
+    vdaBandC: "Class C",
+    slaThreshold15: "15 days",
+    slaThreshold60: "60 days",
+    slaAlert: "Critical deadline",
+    withinSlaLabel: "Within SLA",
+    overSlaLabel: "Over 60d",
+    movingAverageLabel: "Moving average",
+    targetLineLabel: "Target",
+    emptyStateNoData: "No data for this selection.",
+    showTechnicalFields: "Show technical fields",
+    hideTechnicalFields: "Hide technical fields",
+    technicalFieldsHidden: "Technical fields hidden",
+    auditScoreLabel: "Avg. score",
+    completionLevelLabel: "Completion level",
+    drillDownTableTitle: "Drill-down",
+    periodoMes: "Month",
+    periodoTrimestre: "Quarter",
+    periodoYtd: "YTD",
+    emptyImplementedDate: "No implementation date",
+    kpiScoreByTypeLevel: "Avg. audit score",
+    kpiSla: "SLA distribution",
+    kpiTrend: "Progress vs target",
+    kpiFunnel: "Workflow funnel",
+    kpiHeatmap: "Sector × level pairs",
+    kpiTopMachines: "Top machine",
   },
 };

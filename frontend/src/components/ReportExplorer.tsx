@@ -4,14 +4,16 @@ import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { translations, type Locale } from "../lib/i18n";
 import type { ReportRecord } from "../lib/reportInsights";
 import {
-  applyReportFilters,
+  applyReportFiltersWithDateRange,
   buildCrossReportInsights,
   buildCsv,
   buildFilterDefinitions,
   paginateRows,
+  type DateRangeFilter,
 } from "../lib/reportExplorer.testable";
 import {
   getFieldMeta,
+  getReportConceptEntries,
   getReportSemanticView,
   getReportTitle,
 } from "../lib/reportSemantics";
@@ -234,6 +236,27 @@ function CorrelationList({
   );
 }
 
+function isTechnicalField(field: string, rows: ReportRecord[]): boolean {
+  if (/(?:Id|ID|Guid|UUID|guid|uuid)$/.test(field)) {
+    return true;
+  }
+
+  const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const sampleValues = rows.slice(0, 20).map((row) => String(row[field] ?? "")).filter(Boolean);
+  if (sampleValues.length > 0 && sampleValues.every((v) => uuidPattern.test(v))) {
+    return true;
+  }
+
+  if ((field.endsWith("Id") || field.endsWith("_id")) && sampleValues.length > 0) {
+    const numericIdPattern = /^\d+$/;
+    if (sampleValues.every((v) => numericIdPattern.test(v))) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 export function ReportExplorer({ locale }: { locale: Locale }) {
   const dictionary = translations[locale];
   const [layoutPreferences, setLayoutPreferences] = useState<LayoutPreferences>(readLayoutPreferences);
@@ -250,8 +273,11 @@ export function ReportExplorer({ locale }: { locale: Locale }) {
 
   const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
   const [activeFilters, setActiveFilters] = useState<Record<string, string>>({});
+  const [dateRangeFilter, setDateRangeFilter] = useState<DateRangeFilter | null>(null);
   const [drillDownFilter, setDrillDownFilter] = useState<{ field: string; value: string } | null>(null);
   const [page, setPage] = useState(1);
+  const [activePeriod, setActivePeriod] = useState<"month" | "quarter" | "ytd" | null>(null);
+  const [hideTechFields, setHideTechFields] = useState(false);
   const [draggedColumn, setDraggedColumn] = useState<string | null>(null);
   const [resizingColumn, setResizingColumn] = useState<{
     field: string;
@@ -281,7 +307,9 @@ export function ReportExplorer({ locale }: { locale: Locale }) {
 
   useEffect(() => {
     setActiveFilters({});
+    setDateRangeFilter(null);
     setDrillDownFilter(null);
+    setActivePeriod(null);
     setPage(1);
     setMobileSidebarOpen(false);
   }, [deferredReportId]);
@@ -295,8 +323,14 @@ export function ReportExplorer({ locale }: { locale: Locale }) {
     [deferredReportId, locale, reportQuery.data],
   );
   const filteredRows = useMemo(
-    () => applyReportFilters(reportQuery.data?.rows ?? [], activeFilters),
-    [activeFilters, reportQuery.data],
+    () => applyReportFiltersWithDateRange(reportQuery.data?.rows ?? [], activeFilters, dateRangeFilter),
+    [activeFilters, dateRangeFilter, reportQuery.data],
+  );
+  const dateConceptEntry = useMemo(
+    () =>
+      getReportConceptEntries(deferredReportId ?? "").find((conceptEntry) => conceptEntry.conceptKey === "date") ??
+      null,
+    [deferredReportId],
   );
   const tableColumns = useMemo(() => {
     const keys = new Set<string>();
@@ -340,10 +374,13 @@ export function ReportExplorer({ locale }: { locale: Locale }) {
     [hiddenColumns, orderedColumns],
   );
   const orderedVisibleColumns = useMemo(() => {
-    const pinnedVisibleColumns = visibleTableColumns.filter((column) => pinnedColumns.includes(column));
-    const remainingVisibleColumns = visibleTableColumns.filter((column) => !pinnedColumns.includes(column));
+    const allVisible = hideTechFields
+      ? visibleTableColumns.filter((column) => !isTechnicalField(column, filteredRows))
+      : visibleTableColumns;
+    const pinnedVisibleColumns = allVisible.filter((column) => pinnedColumns.includes(column));
+    const remainingVisibleColumns = allVisible.filter((column) => !pinnedColumns.includes(column));
     return [...pinnedVisibleColumns, ...remainingVisibleColumns];
-  }, [pinnedColumns, visibleTableColumns]);
+  }, [pinnedColumns, visibleTableColumns, hideTechFields, filteredRows]);
   const detailRows = useMemo(() => {
     const quickFilteredRows = filteredRows.filter((row) =>
       Object.entries(quickFilters).every(([field, value]) => {
@@ -482,7 +519,45 @@ export function ReportExplorer({ locale }: { locale: Locale }) {
 
   function clearFilters() {
     setActiveFilters({});
+    setDateRangeFilter(null);
     setDrillDownFilter(null);
+    setPage(1);
+  }
+
+  function updateDateRangeFilter(boundary: "from" | "to", value: string) {
+    if (!dateConceptEntry?.field) {
+      return;
+    }
+
+    setDateRangeFilter((currentFilter) => ({
+      field: dateConceptEntry.field,
+      from: boundary === "from" ? value : currentFilter?.from ?? "",
+      to: boundary === "to" ? value : currentFilter?.to ?? "",
+    }));
+  }
+
+  function applyPeriod(period: "month" | "quarter" | "ytd") {
+    if (!dateConceptEntry?.field) {
+      return;
+    }
+
+    const today = new Date();
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const fmt = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+
+    let from: string;
+    if (period === "month") {
+      from = fmt(new Date(today.getFullYear(), today.getMonth(), 1));
+    } else if (period === "quarter") {
+      const quarterStart = Math.floor(today.getMonth() / 3) * 3;
+      from = fmt(new Date(today.getFullYear(), quarterStart, 1));
+    } else {
+      from = `${today.getFullYear()}-01-01`;
+    }
+
+    const to = fmt(today);
+    setActivePeriod(period);
+    setDateRangeFilter({ field: dateConceptEntry.field, from, to });
     setPage(1);
   }
 
@@ -921,6 +996,66 @@ export function ReportExplorer({ locale }: { locale: Locale }) {
                   </h3>
                 </div>
                 <div className="filters-grid">
+                  {dateConceptEntry ? (
+                    <div className="filter-field filter-field-date-range">
+                      <span>
+                        {dictionary.dateRangeLabel}
+                        <InfoTip
+                          content={`${dictionary.dateRangeHelp} | ${dictionary.technicalFieldLabel}: ${dateConceptEntry.field} | ${dictionary.dataSourceLabel}: ${
+                            getFieldMeta(deferredReportId ?? "", dateConceptEntry.field)?.source ?? dateConceptEntry.field
+                          }`}
+                          label={dictionary.dateRangeLabel}
+                        />
+                      </span>
+                      <div className="date-range-grid">
+                        <label className="date-range-input">
+                          <small>{dictionary.dateFromLabel}</small>
+                          <input
+                            type="date"
+                            value={dateRangeFilter?.from ?? ""}
+                            onChange={(event) => {
+                              setActivePeriod(null);
+                              updateDateRangeFilter("from", event.target.value);
+                            }}
+                          />
+                        </label>
+                        <label className="date-range-input">
+                          <small>{dictionary.dateToLabel}</small>
+                          <input
+                            type="date"
+                            value={dateRangeFilter?.to ?? ""}
+                            onChange={(event) => {
+                              setActivePeriod(null);
+                              updateDateRangeFilter("to", event.target.value);
+                            }}
+                          />
+                        </label>
+                      </div>
+                      <div className="period-selector" aria-label={dictionary.periodSelectorLabel}>
+                        <small>{dictionary.periodSelectorLabel}</small>
+                        <div className="period-buttons">
+                          {(["month", "quarter", "ytd"] as const).map((period) => {
+                            const label =
+                              period === "month"
+                                ? dictionary.periodoMes
+                                : period === "quarter"
+                                  ? dictionary.periodoTrimestre
+                                  : dictionary.periodoYtd;
+                            return (
+                              <button
+                                key={period}
+                                type="button"
+                                className={`period-btn${activePeriod === period ? " period-btn-active" : ""}`}
+                                onClick={() => applyPeriod(period)}
+                              >
+                                {label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
                   {filterDefinitions.map((filter) => (
                     <label className="filter-field" key={filter.field}>
                       <span>
@@ -947,6 +1082,11 @@ export function ReportExplorer({ locale }: { locale: Locale }) {
                   ))}
                 </div>
                 <div className="toolbar-row">
+                  <p className="status-copy">
+                    {dictionary.activeFilters}:{" "}
+                    {Object.keys(activeFilters).length +
+                      (dateRangeFilter?.from || dateRangeFilter?.to ? 1 : 0)}
+                  </p>
                   <button type="button" className="secondary-button" onClick={clearFilters}>
                     {dictionary.clearFilters}
                   </button>
@@ -1104,6 +1244,14 @@ export function ReportExplorer({ locale }: { locale: Locale }) {
                     {detailRows.length}
                   </p>
                   <div className="detail-action-group">
+                    <button
+                      type="button"
+                      className={`secondary-button${hideTechFields ? " secondary-button-active" : ""}`}
+                      onClick={() => setHideTechFields((prev) => !prev)}
+                      title={hideTechFields ? dictionary.technicalFieldsHidden : dictionary.showTechnicalFields}
+                    >
+                      {hideTechFields ? dictionary.hideTechnicalFields : dictionary.showTechnicalFields}
+                    </button>
                     <button type="button" className="secondary-button" onClick={showAllColumns}>
                       {dictionary.showAllColumns}
                     </button>

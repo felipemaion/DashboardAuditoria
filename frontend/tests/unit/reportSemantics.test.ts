@@ -30,8 +30,10 @@ describe("reportSemantics", () => {
         ActivityResponsiblePersonName: "Ana",
         auditDepartmentDescription: "Qualidade",
         auditSectorDescription: "Processos",
+        auditTypeAuditDescription: "VDA 6.3",
         ActivityStagesDescription: "Concluída",
         activityTupleCreatedIn: "2026-04-14 09:00:00",
+        activityImplementedDate: "2026-04-18",
       },
     ],
     "nao-conformidade": [
@@ -155,6 +157,21 @@ describe("reportSemantics", () => {
         chartType: "pie",
         categoryField: "ActivityStagesDescription",
         title: "Distribuição por status",
+      }),
+    );
+  });
+
+  it("uses activityImplementedDate as the main date concept for audit activities", () => {
+    const concepts = getReportConceptEntries("atividades-de-auditoria");
+    const dateConcept = concepts.find((concept) => concept.conceptKey === "date");
+
+    expect(dateConcept).toEqual(
+      expect.objectContaining({
+        field: "activityImplementedDate",
+        label: {
+          "pt-BR": "Implementada em",
+          "en-US": "Implemented on",
+        },
       }),
     );
   });

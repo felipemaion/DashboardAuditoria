@@ -1,5 +1,6 @@
 import {
   applyReportFilters,
+  applyReportFiltersWithDateRange,
   buildCrossReportInsights,
   buildCsv,
   buildFilterDefinitions,
@@ -210,6 +211,20 @@ describe("reportExplorer state helpers", () => {
     expect(filteredRows).toHaveLength(2);
     expect(paginateRows(filteredRows, 1, 1)).toEqual([rows[0]]);
     expect(paginateRows(filteredRows, 2, 1)).toEqual([rows[2]]);
+  });
+
+  it("filters occurrence records between two dates using the report date field", () => {
+    const filteredRows = applyReportFiltersWithDateRange(
+      rows,
+      {},
+      {
+        field: "Issue Date",
+        from: "2026-04-11",
+        to: "2026-04-12",
+      },
+    );
+
+    expect(filteredRows).toEqual([rows[1], rows[2]]);
   });
 
   it("builds CSV output with escaped values", () => {

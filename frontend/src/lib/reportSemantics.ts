@@ -37,14 +37,20 @@ type SemanticKpi = {
   compute: (rows: ReportRecord[], locale: Locale) => string;
 };
 
+type ChartType = "pie" | "bar" | "combo" | "grouped-bar" | "gauge" | "trend-line" | "funnel" | "heatmap" | "horizontal-bar";
+
 type SemanticChart = {
   id: string;
-  chartType: "pie" | "bar" | "combo";
+  chartType: ChartType;
   title: LocalizedText;
   description: LocalizedText;
   categoryField: string;
   valueField?: string;
   dateField?: string;
+  groupField?: string;
+  secondaryField?: string;
+  targetValue?: number;
+  alertThreshold?: number;
 };
 
 type SemanticCorrelation = {
@@ -65,12 +71,16 @@ export type ReportSemanticView = {
   }>;
   charts: Array<{
     id: string;
-    chartType: "pie" | "bar" | "combo";
+    chartType: ChartType;
     title: string;
     description: string;
     categoryField: string;
     valueField?: string;
     dateField?: string;
+    groupField?: string;
+    secondaryField?: string;
+    targetValue?: number;
+    alertThreshold?: number;
   }>;
   correlations: Array<{
     id: string;
@@ -1305,7 +1315,7 @@ function buildGenericCharts(options: {
     });
   }
 
-  return charts.slice(0, 3);
+  return charts;
 }
 
 function buildGenericCorrelations(fields: Array<{ leftField: string; rightField: string; rationalePt: string; rationaleEn: string }>): SemanticCorrelation[] {
@@ -1330,6 +1340,8 @@ function createDefinition(options: {
   dateField?: string;
   focusField?: string;
   correlations?: Array<{ leftField: string; rightField: string; rationalePt: string; rationaleEn: string }>;
+  extraCharts?: SemanticChart[];
+  extraKpis?: SemanticKpi[];
 }): ReportSemanticDefinition {
   return {
     title: options.title,
@@ -1339,19 +1351,25 @@ function createDefinition(options: {
       ...(options.fieldMeta ?? {}),
     },
     concepts: options.concepts,
-    kpis: buildGenericKpis({
-      statusField: options.statusField,
-      ownerField: options.ownerField,
-      dateField: options.dateField,
-      focusField: options.focusField,
-      reportTitle: options.title,
-    }),
-    charts: buildGenericCharts({
-      statusField: options.statusField,
-      ownerField: options.ownerField,
-      dateField: options.dateField,
-      focusField: options.focusField,
-    }),
+    kpis: [
+      ...buildGenericKpis({
+        statusField: options.statusField,
+        ownerField: options.ownerField,
+        dateField: options.dateField,
+        focusField: options.focusField,
+        reportTitle: options.title,
+      }),
+      ...(options.extraKpis ?? []),
+    ],
+    charts: [
+      ...buildGenericCharts({
+        statusField: options.statusField,
+        ownerField: options.ownerField,
+        dateField: options.dateField,
+        focusField: options.focusField,
+      }),
+      ...(options.extraCharts ?? []),
+    ],
     correlations: buildGenericCorrelations(options.correlations ?? []),
   };
 }
@@ -1521,17 +1539,38 @@ const reportSemantics: Record<string, ReportSemanticDefinition> = {
       auditAnswerOptionDescription: fieldMeta("Descrição da opção", "Option description", "Descrição da opção selecionada no formulário da auditoria.", "Description of the option selected in the audit form.", "SmartFormSectionsFieldsOptions.SmartFormSectionsFieldsOptions_Description"),
       Issue: commonFieldMeta.Issue,
       activitySectorDescription: fieldMeta("Setor da atividade", "Activity sector", "Setor associado à atividade.", "Sector associated with the activity.", "Sector.Sector_Description"),
+      auditScore: fieldMeta("Score da auditoria", "Audit score", "Pontuação obtida na auditoria.", "Score obtained in the audit.", "Audit.Audit_Score"),
+      auditTotalAnswers: fieldMeta("Total de respostas", "Total answers", "Número total de respostas no formulário da auditoria.", "Total number of answers in the audit form.", "Audit.Audit_TotalAnswers"),
+      auditTotalAnswerAvaliation: fieldMeta("Respostas avaliadas", "Evaluated answers", "Número de respostas com avaliação registrada.", "Number of answers with a recorded evaluation.", "Audit.Audit_TotalAnswerAvaliation"),
+      auditTotalFormCompleted: fieldMeta("Formulários completos", "Completed forms", "Número de formulários completamente preenchidos.", "Number of fully completed forms.", "Audit.Audit_TotalFormCompleted"),
+      auditTotalAuditAnswerScore: fieldMeta("Score total de respostas", "Total answer score", "Soma dos scores de todas as respostas da auditoria.", "Sum of scores across all audit answers.", "Audit.Audit_TotalAuditAnsweScore"),
+      auditStatus: fieldMeta("Status da auditoria", "Audit status", "Status operacional da auditoria vinculada.", "Operational status of the linked audit.", "Audit.Audit_Status"),
+      auditAnswerAvaliationStatus: fieldMeta("Status de avaliação", "Evaluation status", "Status de avaliação da resposta no formulário.", "Evaluation status of the answer in the form.", "AuditAnswer.AuditAnswer_AvaliationStatus"),
+      activityPriority: fieldMeta("Prioridade", "Priority", "Prioridade definida para a atividade.", "Priority assigned to the activity.", "Activity.Activity_Priority"),
+      activityComplexity: fieldMeta("Complexidade", "Complexity", "Nível de complexidade estimado para a atividade.", "Estimated complexity level of the activity.", "Activity.Activity_Complexity"),
+      activityDeadline: fieldMeta("Prazo final", "Deadline", "Data limite para conclusão da atividade.", "Deadline date for completing the activity.", "Activity.Activity_Deadline"),
+      activityPlannedDate: fieldMeta("Data planejada", "Planned date", "Data originalmente planejada para a atividade.", "Originally planned date for the activity.", "Activity.Activity_PlannedDate"),
+      activityReplannedDate: fieldMeta("Data replanejada", "Rescheduled date", "Nova data após replanejamento da atividade.", "New date after rescheduling the activity.", "Activity.Activity_ReplannedDate"),
+      activityCompletionLevel: fieldMeta("Nível de conclusão", "Completion level", "Percentual de conclusão da atividade.", "Activity completion percentage.", "Activity.Activity_CompletionLevel"),
+      activityCancellationDate: fieldMeta("Data de cancelamento", "Cancellation date", "Data em que a atividade foi cancelada.", "Date when the activity was cancelled.", "Activity.Activity_CancellationDate"),
+      focusFactoryDescription: fieldMeta("Focus Factory", "Focus Factory", "Área fabril ou foco organizacional associado à atividade.", "Plant focus area associated with the activity.", "FocusFactory.FocusFactory_Description"),
+      typeActivityDescription: fieldMeta("Tipo de atividade", "Activity type", "Classificação do tipo de atividade.", "Activity type classification.", "TypeActivity.TypeActivity_Description"),
+      activityCorporateDivisionDescription: fieldMeta("Divisão corporativa", "Corporate division", "Divisão corporativa associada à atividade.", "Corporate division associated with the activity.", "CorporateDivision.CorporateDivision_Description"),
+      auditAnswerSectionDescription: fieldMeta("Seção do formulário", "Form section", "Seção do formulário de auditoria à qual a resposta pertence.", "Audit form section to which the answer belongs.", "SmartFormSections.SmartFormSections_Description"),
+      auditAnswerAnswer: fieldMeta("Resposta", "Answer", "Conteúdo da resposta registrada no formulário de auditoria.", "Content of the answer recorded in the audit form.", "AuditAnswer.AuditAnswer_Answer"),
+      activityScheduleDescription: fieldMeta("Agenda", "Schedule", "Descrição da agenda vinculada à atividade.", "Description of the schedule linked to the activity.", "Schedule.Schedule_Description"),
     },
     concepts: [
       { conceptKey: "owner", field: "ActivityResponsiblePersonName", label: { "pt-BR": "Responsável", "en-US": "Owner" } },
+      { conceptKey: "auditType", field: "auditTypeAuditDescription", label: { "pt-BR": "Tipo de auditoria", "en-US": "Audit type" } },
       { conceptKey: "department", field: "auditDepartmentDescription", label: { "pt-BR": "Departamento", "en-US": "Department" } },
       { conceptKey: "sector", field: "auditSectorDescription", label: { "pt-BR": "Setor", "en-US": "Sector" } },
       { conceptKey: "stage", field: "ActivityStagesDescription", label: { "pt-BR": "Estágio", "en-US": "Stage" } },
-      { conceptKey: "date", field: "activityTupleCreatedIn", label: { "pt-BR": "Criada em", "en-US": "Created on" } },
+      { conceptKey: "date", field: "activityImplementedDate", label: { "pt-BR": "Implementada em", "en-US": "Implemented on" } },
     ],
     statusField: "ActivityStagesDescription",
     ownerField: "ActivityResponsiblePersonName",
-    dateField: "activityTupleCreatedIn",
+    dateField: "activityImplementedDate",
     focusField: "auditDepartmentDescription",
     correlations: [
       {
@@ -1539,6 +1578,174 @@ const reportSemantics: Record<string, ReportSemanticDefinition> = {
         rightField: "ActivityStagesDescription",
         rationalePt: "Ajuda a entender se o backlog está concentrado em responsáveis específicos.",
         rationaleEn: "Helps understand whether backlog is concentrated among specific owners.",
+      },
+      {
+        leftField: "auditDepartmentDescription",
+        rightField: "ActivityStagesDescription",
+        rationalePt: "Cruza departamento e estágio para identificar onde há maior acúmulo de ações abertas.",
+        rationaleEn: "Crosses department and stage to identify where open actions accumulate the most.",
+      },
+    ],
+    extraKpis: [
+      {
+        id: "score-by-type-level",
+        label: { "pt-BR": "Score médio de auditoria", "en-US": "Avg. audit score" },
+        description: {
+          "pt-BR": "Média do score das auditorias no recorte atual, agrupável por tipo e nível.",
+          "en-US": "Average audit score in the current slice, groupable by type and level.",
+        },
+        source: "Audit.Audit_Score",
+        compute: (rows, locale) => {
+          const scores = rows.map((row) => Number(row["auditScore"])).filter((v) => !Number.isNaN(v) && v > 0);
+          if (scores.length === 0) {
+            return "-";
+          }
+          const avg = scores.reduce((sum, v) => sum + v, 0) / scores.length;
+          return formatNumber(avg, locale, { maximumFractionDigits: 1 });
+        },
+      },
+      {
+        id: "sla-15-60",
+        label: { "pt-BR": "Distribuição de SLA", "en-US": "SLA distribution" },
+        description: {
+          "pt-BR": "Proporção de ações implementadas em até 15 dias, entre 15–60 dias, e acima de 60 dias.",
+          "en-US": "Proportion of actions implemented within 15 days, between 15–60 days, and over 60 days.",
+        },
+        source: "Activity.Activity_ImplementedDate",
+        compute: (rows, locale) => {
+          const now = new Date();
+          let within15 = 0;
+          let within60 = 0;
+          let over60 = 0;
+          for (const row of rows) {
+            const raw = normalizeString(row["activityImplementedDate"]).slice(0, 10);
+            if (!raw) {
+              continue;
+            }
+            const date = new Date(raw);
+            if (Number.isNaN(date.getTime())) {
+              continue;
+            }
+            const days = (now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24);
+            if (days <= 15) {
+              within15++;
+            } else if (days <= 60) {
+              within60++;
+            } else {
+              over60++;
+            }
+          }
+          return `≤15d: ${formatNumber(within15, locale)} | ≤60d: ${formatNumber(within60, locale)} | >60d: ${formatNumber(over60, locale)}`;
+        },
+      },
+      {
+        id: "trend-target",
+        label: { "pt-BR": "Progresso vs meta", "en-US": "Progress vs target" },
+        description: {
+          "pt-BR": "Percentual de ações com data de implementação preenchida em relação ao total.",
+          "en-US": "Percentage of actions with a filled implementation date out of total.",
+        },
+        source: "Activity.Activity_ImplementedDate",
+        compute: (rows, locale) => {
+          const implemented = countWhere(rows, (row) => normalizeString(row["activityImplementedDate"]) !== "");
+          const total = rows.length;
+          if (total === 0) {
+            return "-";
+          }
+          const pct = Math.round((implemented / total) * 100);
+          return `${formatNumber(pct, locale)}%`;
+        },
+      },
+      {
+        id: "workflow-funnel",
+        label: { "pt-BR": "Funil de estágios", "en-US": "Workflow funnel" },
+        description: {
+          "pt-BR": "Estágio com maior volume de ações no workflow atual.",
+          "en-US": "Stage with the highest volume of actions in the current workflow.",
+        },
+        source: "WorkflowStages.WorkflowStages_Description",
+        compute: (rows) => topCategory(rows, "ActivityStagesDescription"),
+      },
+      {
+        id: "sector-level-heatmap",
+        label: { "pt-BR": "Pares setor × nível", "en-US": "Sector × level pairs" },
+        description: {
+          "pt-BR": "Quantidade de combinações únicas de setor e nível de auditoria no recorte.",
+          "en-US": "Number of unique sector and audit level combinations in the current slice.",
+        },
+        source: "Sector.Sector_Description + AuditLevel.AuditLevel_Description",
+        compute: (rows, locale) => {
+          const pairs = new Set(
+            rows.map((row) => `${normalizeString(row["auditSectorDescription"])}|${normalizeString(row["auditLevelDescription"])}`).filter((pair) => pair !== "|"),
+          );
+          return formatNumber(pairs.size, locale);
+        },
+      },
+      {
+        id: "top-machines",
+        label: { "pt-BR": "Máquina principal", "en-US": "Top machine" },
+        description: {
+          "pt-BR": "Máquina industrial com maior ocorrência de auditorias no recorte atual.",
+          "en-US": "Industrial machine with the highest number of audits in the current slice.",
+        },
+        source: "IndustrialMachine.IndustrialMachine_Description",
+        compute: (rows) => topCategory(rows, "auditIndustrialMachineDescription"),
+      },
+    ],
+    extraCharts: [
+      {
+        id: "stage-funnel",
+        chartType: "funnel",
+        title: { "pt-BR": "Funil de estágios", "en-US": "Stage funnel" },
+        description: {
+          "pt-BR": "Volume de ações em cada estágio do workflow de auditoria.",
+          "en-US": "Volume of actions at each audit workflow stage.",
+        },
+        categoryField: "ActivityStagesDescription",
+      },
+      {
+        id: "sector-stage-heatmap",
+        chartType: "heatmap",
+        title: { "pt-BR": "Heatmap Setor × Estágio", "en-US": "Sector × Stage Heatmap" },
+        description: {
+          "pt-BR": "Concentração de ações por setor e estágio do workflow.",
+          "en-US": "Action concentration by sector and workflow stage.",
+        },
+        categoryField: "auditSectorDescription",
+        secondaryField: "ActivityStagesDescription",
+      },
+      {
+        id: "creation-trend",
+        chartType: "trend-line",
+        title: { "pt-BR": "Tendência de criação", "en-US": "Creation trend" },
+        description: {
+          "pt-BR": "Evolução temporal das ações criadas com média móvel de 3 pontos.",
+          "en-US": "Time evolution of created actions with 3-point moving average.",
+        },
+        categoryField: "activityTupleCreatedIn",
+      },
+      {
+        id: "sla-gauge",
+        chartType: "gauge",
+        title: { "pt-BR": "Cumprimento de SLA", "en-US": "SLA compliance" },
+        description: {
+          "pt-BR": "Proporção de ações implementadas dentro dos limites de SLA (15d e 60d).",
+          "en-US": "Proportion of actions implemented within SLA limits (15d and 60d).",
+        },
+        categoryField: "activityImplementedDate",
+        targetValue: 60,
+        alertThreshold: 20,
+      },
+      {
+        id: "owner-stage-grouped",
+        chartType: "grouped-bar",
+        title: { "pt-BR": "Ações por responsável e estágio", "en-US": "Actions by owner and stage" },
+        description: {
+          "pt-BR": "Distribuição de ações por responsável agrupada pelo estágio do workflow.",
+          "en-US": "Action distribution by owner grouped by workflow stage.",
+        },
+        categoryField: "ActivityResponsiblePersonName",
+        groupField: "ActivityStagesDescription",
       },
     ],
   }),
@@ -1803,6 +2010,10 @@ export function getReportSemanticView(
       valueField: chart.valueField,
       dateField: chart.dateField,
       description: chart.description[locale],
+      groupField: chart.groupField,
+      secondaryField: chart.secondaryField,
+      targetValue: chart.targetValue,
+      alertThreshold: chart.alertThreshold,
     })),
     correlations: semantic.correlations.map((correlation) => ({
       id: correlation.id,
@@ -1815,4 +2026,33 @@ export function getReportSemanticView(
 
 export function getReportTitle(reportId: string, locale: Locale, fallbackTitle: string): string {
   return reportSemantics[reportId]?.title[locale] ?? fallbackTitle;
+}
+
+const defaultHiddenColumnsByReport: Record<string, string[]> = {
+  "atividades-de-auditoria": [
+    "activityGuid",
+    "auditGuid",
+    "auditAnswerGuid",
+    "auditAnswerSmartFormSectionFieldsCode",
+    "auditAnswerSmartFormSectionsFieldsOptionsCode",
+    "activityContextCode",
+    "activityParentCode",
+    "activityProjectCode",
+    "activityEpicCode",
+    "activityIssueCode",
+    "activityAuditAnswerCode",
+    "activitySectorCode",
+    "activityCorporateDivisionCode",
+    "auditContextCode",
+    "auditAuditorPersonCode",
+    "auditResponsiblePersonCode",
+    "auditDepartmentCode",
+    "auditSectorCode",
+    "auditIndustrialMachineCode",
+    "auditLevelCode",
+  ],
+};
+
+export function getDefaultHiddenColumns(reportId: string): string[] {
+  return defaultHiddenColumnsByReport[reportId] ?? [];
 }

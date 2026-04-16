@@ -13,6 +13,11 @@ export type FilterDefinition = {
 };
 
 export type ActiveFilter = Record<string, string>;
+export type DateRangeFilter = {
+  field: string;
+  from: string;
+  to: string;
+};
 
 export type CrossReportInsight = {
   id: string;
@@ -295,14 +300,54 @@ export function buildFilterDefinitions(
 }
 
 export function applyReportFilters(rows: ReportRecord[], filters: ActiveFilter): ReportRecord[] {
+  return applyReportFiltersWithDateRange(rows, filters);
+}
+
+function normalizeDateValue(value: unknown): string {
+  const normalized = normalizeString(value);
+  return normalized ? normalized.slice(0, 10) : "";
+}
+
+export function applyReportFiltersWithDateRange(
+  rows: ReportRecord[],
+  filters: ActiveFilter,
+  dateRange?: DateRangeFilter | null,
+): ReportRecord[] {
   const activeEntries = Object.entries(filters).filter(([, value]) => value);
-  if (activeEntries.length === 0) {
+  const hasDateRange = Boolean(dateRange && dateRange.field && (dateRange.from || dateRange.to));
+
+  if (activeEntries.length === 0 && !hasDateRange) {
     return rows;
   }
 
-  return rows.filter((row) =>
-    activeEntries.every(([field, expected]) => normalizeString(row[field]) === expected),
-  );
+  return rows.filter((row) => {
+    const matchesDiscreteFilters = activeEntries.every(
+      ([field, expected]) => normalizeString(row[field]) === expected,
+    );
+
+    if (!matchesDiscreteFilters) {
+      return false;
+    }
+
+    if (!hasDateRange || !dateRange) {
+      return true;
+    }
+
+    const currentDate = normalizeDateValue(row[dateRange.field]);
+    if (!currentDate) {
+      return false;
+    }
+
+    if (dateRange.from && currentDate < dateRange.from) {
+      return false;
+    }
+
+    if (dateRange.to && currentDate > dateRange.to) {
+      return false;
+    }
+
+    return true;
+  });
 }
 
 export function paginateRows(rows: ReportRecord[], page: number, pageSize: number): ReportRecord[] {
