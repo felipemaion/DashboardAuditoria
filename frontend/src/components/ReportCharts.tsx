@@ -2,7 +2,7 @@ import * as d3 from "d3";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 
-import { getFieldMeta } from "../lib/reportSemantics";
+import { classifyVdaBand, getFieldMeta } from "../lib/reportSemantics";
 import { InfoTip } from "./InfoTip";
 
 type ReportRecord = Record<string, unknown>;
@@ -21,6 +21,8 @@ type ChartSuggestion = {
   secondaryField?: string;
   targetValue?: number;
   alertThreshold?: number;
+  useAverage?: boolean;
+  bandType?: "vda-score";
 };
 
 type Locale = "pt-BR" | "en-US";
@@ -465,6 +467,12 @@ function computeMovingAverage(data: AggregatedDatum[], window: number): (number 
   });
 }
 
+function vdaBandFill(band: "A" | "B" | "C"): string {
+  if (band === "A") return "rgba(34, 197, 94, 0.45)";
+  if (band === "B") return "rgba(245, 158, 11, 0.45)";
+  return "rgba(239, 68, 68, 0.45)";
+}
+
 function TrendLineChart({
   title,
   subtitle,
@@ -474,6 +482,7 @@ function TrendLineChart({
   onDrillDown,
   categoryField,
   targetValue,
+  bandType,
 }: {
   title: string;
   subtitle: string;
@@ -483,6 +492,7 @@ function TrendLineChart({
   onDrillDown?: (filter: { field: string; value: string }) => void;
   categoryField: string;
   targetValue?: number;
+  bandType?: "vda-score";
 }) {
   const width = 520;
   const height = 260;
@@ -533,6 +543,10 @@ function TrendLineChart({
             {data.map((datum) => {
               const x = xScale(datum.label) ?? 0;
               const y = yScale(datum.count);
+              const fill =
+                bandType === "vda-score"
+                  ? vdaBandFill(classifyVdaBand(datum.count))
+                  : "rgba(96, 165, 250, 0.35)";
               return (
                 <rect
                   key={datum.label}
@@ -541,7 +555,7 @@ function TrendLineChart({
                   width={xScale.bandwidth()}
                   height={height - margin.bottom - y}
                   rx={6}
-                  fill="rgba(96, 165, 250, 0.35)"
+                  fill={fill}
                   onClick={() => onDrillDown?.({ field: categoryField, value: datum.label })}
                 />
               );
@@ -1122,6 +1136,11 @@ export function ReportCharts({ reportId, rows, suggestion, labels, locale, onDri
       return aggregateByDate(rows, suggestion.dateField, suggestion.valueField);
     }
 
+    if (suggestion.useAverage && suggestion.chartType === "trend-line") {
+      const byDate = aggregateByDate(rows, suggestion.categoryField, suggestion.valueField);
+      return byDate.map((datum) => ({ ...datum, count: datum.average ?? datum.count }));
+    }
+
     return aggregateByCategory(rows, effectiveCategoryField, suggestion.valueField);
   }, [effectiveCategoryField, rows, suggestion]);
 
@@ -1227,6 +1246,7 @@ export function ReportCharts({ reportId, rows, suggestion, labels, locale, onDri
         tooltip={tooltip}
         categoryField={suggestion.categoryField}
         targetValue={suggestion.targetValue}
+        bandType={suggestion.bandType}
         onDrillDown={onDrillDown}
       />
     );

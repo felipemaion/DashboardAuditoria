@@ -11,6 +11,7 @@
  */
 
 import {
+  classifyVdaBand,
   getFieldMeta,
   getReportConceptEntries,
   getReportSemanticView,
@@ -62,6 +63,104 @@ const minimalRows = [
     auditAuditorPersonName: "Diana",
   },
 ];
+
+// ============================================================
+// 11. R-2: Heatmap setor × nível VDA 6.3
+// ============================================================
+
+describe("atividades-de-auditoria — sector-level-heatmap-vda chart (R-2)", () => {
+  it("has chart sector-level-heatmap-vda in semantic view", () => {
+    const view = getReportSemanticView("atividades-de-auditoria", minimalRows, "pt-BR");
+    const chart = view.charts.find((c) => c.id === "sector-level-heatmap-vda");
+    expect(chart, "chart sector-level-heatmap-vda should exist").toBeDefined();
+  });
+
+  it("sector-level-heatmap-vda uses auditSectorDescription as categoryField", () => {
+    const view = getReportSemanticView("atividades-de-auditoria", minimalRows, "pt-BR");
+    const chart = view.charts.find((c) => c.id === "sector-level-heatmap-vda");
+    expect(chart?.categoryField).toBe("auditSectorDescription");
+  });
+
+  it("sector-level-heatmap-vda uses auditLevelDescription as secondaryField", () => {
+    const view = getReportSemanticView("atividades-de-auditoria", minimalRows, "pt-BR");
+    const chart = view.charts.find((c) => c.id === "sector-level-heatmap-vda");
+    expect(chart?.secondaryField).toBe("auditLevelDescription");
+  });
+
+  it("sector-level-heatmap-vda description mentions VDA 6.3", () => {
+    const view = getReportSemanticView("atividades-de-auditoria", minimalRows, "pt-BR");
+    const chart = view.charts.find((c) => c.id === "sector-level-heatmap-vda");
+    expect(chart?.description).toMatch(/VDA 6\.3/);
+  });
+
+  it("sector-stage-heatmap still exists (not replaced)", () => {
+    const view = getReportSemanticView("atividades-de-auditoria", minimalRows, "pt-BR");
+    const chart = view.charts.find((c) => c.id === "sector-stage-heatmap");
+    expect(chart, "existing sector-stage-heatmap must not be removed").toBeDefined();
+  });
+});
+
+// ============================================================
+// 12. R-3: score-trend substitui creation-trend
+// ============================================================
+
+describe("atividades-de-auditoria — score-trend chart (R-3)", () => {
+  it("has chart score-trend in semantic view", () => {
+    const view = getReportSemanticView("atividades-de-auditoria", minimalRows, "pt-BR");
+    const chart = view.charts.find((c) => c.id === "score-trend");
+    expect(chart, "chart score-trend should exist").toBeDefined();
+  });
+
+  it("score-trend uses auditEndDate as categoryField", () => {
+    const view = getReportSemanticView("atividades-de-auditoria", minimalRows, "pt-BR");
+    const chart = view.charts.find((c) => c.id === "score-trend");
+    expect(chart?.categoryField).toBe("auditEndDate");
+  });
+
+  it("score-trend description mentions IATF 16949", () => {
+    const view = getReportSemanticView("atividades-de-auditoria", minimalRows, "pt-BR");
+    const chart = view.charts.find((c) => c.id === "score-trend");
+    expect(chart?.description).toMatch(/IATF/);
+  });
+
+  it("creation-trend is replaced (no longer in semantic view)", () => {
+    const view = getReportSemanticView("atividades-de-auditoria", minimalRows, "pt-BR");
+    const chart = view.charts.find((c) => c.id === "creation-trend");
+    expect(chart, "creation-trend should be replaced by score-trend").toBeUndefined();
+  });
+
+  it("trend-target KPI source is auditScore (not activityImplementedDate)", () => {
+    const view = getReportSemanticView("atividades-de-auditoria", minimalRows, "pt-BR");
+    const kpi = view.kpis.find((k) => k.id === "trend-target");
+    expect(kpi).toBeDefined();
+    // The tooltip must reference Audit_Score source
+    expect(kpi?.tooltip).toMatch(/Audit_Score|auditScore/);
+  });
+});
+
+// ============================================================
+// 13. R-4: classifyVdaBand — faixas VDA 6.3
+// ============================================================
+
+describe("classifyVdaBand — faixas VDA 6.3 (R-4)", () => {
+  it("returns 'A' for score >= 90", () => {
+    expect(classifyVdaBand(90)).toBe("A");
+    expect(classifyVdaBand(95)).toBe("A");
+    expect(classifyVdaBand(100)).toBe("A");
+  });
+
+  it("returns 'B' for score in 70–89 range", () => {
+    expect(classifyVdaBand(70)).toBe("B");
+    expect(classifyVdaBand(80)).toBe("B");
+    expect(classifyVdaBand(89)).toBe("B");
+  });
+
+  it("returns 'C' for score < 70", () => {
+    expect(classifyVdaBand(69)).toBe("C");
+    expect(classifyVdaBand(50)).toBe("C");
+    expect(classifyVdaBand(0)).toBe("C");
+  });
+});
 
 // ============================================================
 // 1. SEMANTIC LAYER — conceptKey "auditType" mapeado

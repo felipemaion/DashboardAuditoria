@@ -51,6 +51,8 @@ type SemanticChart = {
   secondaryField?: string;
   targetValue?: number;
   alertThreshold?: number;
+  useAverage?: boolean;
+  bandType?: "vda-score";
 };
 
 type SemanticCorrelation = {
@@ -81,6 +83,8 @@ export type ReportSemanticView = {
     secondaryField?: string;
     targetValue?: number;
     alertThreshold?: number;
+    useAverage?: boolean;
+    bandType?: "vda-score";
   }>;
   correlations: Array<{
     id: string;
@@ -1640,20 +1644,22 @@ const reportSemantics: Record<string, ReportSemanticDefinition> = {
       },
       {
         id: "trend-target",
-        label: { "pt-BR": "Progresso vs meta", "en-US": "Progress vs target" },
+        label: { "pt-BR": "Tendência de score", "en-US": "Score trend" },
         description: {
-          "pt-BR": "Percentual de ações com data de implementação preenchida em relação ao total.",
-          "en-US": "Percentage of actions with a filled implementation date out of total.",
+          "pt-BR": "Média dos últimos 5 scores de auditoria para identificar tendência de qualidade. Referência: IATF 16949 §10.3.",
+          "en-US": "Average of the last 5 audit scores to identify quality trend. Reference: IATF 16949 §10.3.",
         },
-        source: "Activity.Activity_ImplementedDate",
+        source: "Audit.Audit_Score",
         compute: (rows, locale) => {
-          const implemented = countWhere(rows, (row) => normalizeString(row["activityImplementedDate"]) !== "");
-          const total = rows.length;
-          if (total === 0) {
+          const scores = rows
+            .map((row) => Number(row["auditScore"]))
+            .filter((v) => !Number.isNaN(v) && v > 0);
+          if (scores.length === 0) {
             return "-";
           }
-          const pct = Math.round((implemented / total) * 100);
-          return `${formatNumber(pct, locale)}%`;
+          const last5 = scores.slice(-5);
+          const avg = last5.reduce((sum, v) => sum + v, 0) / last5.length;
+          return formatNumber(avg, locale, { maximumFractionDigits: 1 });
         },
       },
       {
@@ -1715,14 +1721,29 @@ const reportSemantics: Record<string, ReportSemanticDefinition> = {
         secondaryField: "ActivityStagesDescription",
       },
       {
-        id: "creation-trend",
-        chartType: "trend-line",
-        title: { "pt-BR": "Tendência de criação", "en-US": "Creation trend" },
+        id: "sector-level-heatmap-vda",
+        chartType: "heatmap",
+        title: { "pt-BR": "Heatmap Setor × Nível VDA 6.3", "en-US": "Sector × VDA 6.3 Level Heatmap" },
         description: {
-          "pt-BR": "Evolução temporal das ações criadas com média móvel de 3 pontos.",
-          "en-US": "Time evolution of created actions with 3-point moving average.",
+          "pt-BR": "Concentração de ações por setor e nível de auditoria VDA 6.3 (P3–P7). Referência normativa: VDA 6.3.",
+          "en-US": "Action concentration by sector and VDA 6.3 audit level (P3–P7). Normative reference: VDA 6.3.",
         },
-        categoryField: "activityTupleCreatedIn",
+        categoryField: "auditSectorDescription",
+        secondaryField: "auditLevelDescription",
+      },
+      {
+        id: "score-trend",
+        chartType: "trend-line",
+        title: { "pt-BR": "Tendência de score", "en-US": "Score trend" },
+        description: {
+          "pt-BR": "Média móvel de 3 períodos do score de auditoria ao longo do tempo. Referência: IATF 16949 §10.3 melhoria contínua.",
+          "en-US": "3-period moving average of audit score over time. Reference: IATF 16949 §10.3 continual improvement.",
+        },
+        categoryField: "auditEndDate",
+        valueField: "auditScore",
+        useAverage: true,
+        targetValue: 85,
+        bandType: "vda-score",
       },
       {
         id: "sla-gauge",
@@ -2014,6 +2035,8 @@ export function getReportSemanticView(
       secondaryField: chart.secondaryField,
       targetValue: chart.targetValue,
       alertThreshold: chart.alertThreshold,
+      useAverage: chart.useAverage,
+      bandType: chart.bandType,
     })),
     correlations: semantic.correlations.map((correlation) => ({
       id: correlation.id,
@@ -2052,6 +2075,12 @@ const defaultHiddenColumnsByReport: Record<string, string[]> = {
     "auditLevelCode",
   ],
 };
+
+export function classifyVdaBand(score: number): "A" | "B" | "C" {
+  if (score >= 90) return "A";
+  if (score >= 70) return "B";
+  return "C";
+}
 
 export function getDefaultHiddenColumns(reportId: string): string[] {
   return defaultHiddenColumnsByReport[reportId] ?? [];

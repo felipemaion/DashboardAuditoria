@@ -1,5 +1,5 @@
 import { useQueries, useQuery } from "@tanstack/react-query";
-import { useDeferredValue, useEffect, useMemo, useState } from "react";
+import { type ReactNode, useDeferredValue, useEffect, useMemo, useState } from "react";
 
 import { translations, type Locale } from "../lib/i18n";
 import type { ReportRecord } from "../lib/reportInsights";
@@ -12,6 +12,8 @@ import {
   type DateRangeFilter,
 } from "../lib/reportExplorer.testable";
 import {
+  classifyVdaBand,
+  getDefaultHiddenColumns,
   getFieldMeta,
   getReportConceptEntries,
   getReportSemanticView,
@@ -343,7 +345,9 @@ export function ReportExplorer({ locale }: { locale: Locale }) {
     return [...keys];
   }, [filteredRows]);
   const hiddenColumns = useMemo(
-    () => layoutPreferences.hiddenColumnsByReport[deferredReportId ?? ""] ?? [],
+    () =>
+      layoutPreferences.hiddenColumnsByReport[deferredReportId ?? ""] ??
+      getDefaultHiddenColumns(deferredReportId ?? ""),
     [deferredReportId, layoutPreferences.hiddenColumnsByReport],
   );
   const columnWidths = useMemo(
@@ -976,15 +980,37 @@ export function ReportExplorer({ locale }: { locale: Locale }) {
                   </p>
                 </div>
                 <div className="kpi-grid">
-                  {semanticView.kpis.map((kpi) => (
-                    <article className="kpi-card" key={kpi.id}>
-                      <p className="kpi-label">
-                        {kpi.label}
-                        <InfoTip content={`${kpi.tooltip} | ${kpi.detail}`} label={kpi.label} />
-                      </p>
-                      <strong className="kpi-value">{kpi.value}</strong>
-                    </article>
-                  ))}
+                  {semanticView.kpis.map((kpi) => {
+                    let vdaBadge: ReactNode = null;
+                    if (kpi.id === "score-by-type-level") {
+                      const numericScore = parseFloat(String(kpi.value));
+                      if (!Number.isNaN(numericScore)) {
+                        const band = classifyVdaBand(numericScore);
+                        const bandLabel =
+                          band === "A"
+                            ? dictionary.vdaBandA
+                            : band === "B"
+                              ? dictionary.vdaBandB
+                              : dictionary.vdaBandC;
+                        vdaBadge = (
+                          <span className={`vda-badge vda-badge-${band.toLowerCase()}`}>
+                            {bandLabel}
+                          </span>
+                        );
+                      }
+                    }
+
+                    return (
+                      <article className="kpi-card" key={kpi.id}>
+                        <p className="kpi-label">
+                          {kpi.label}
+                          <InfoTip content={`${kpi.tooltip} | ${kpi.detail}`} label={kpi.label} />
+                        </p>
+                        <strong className="kpi-value">{kpi.value}</strong>
+                        {vdaBadge}
+                      </article>
+                    );
+                  })}
                 </div>
               </section>
 

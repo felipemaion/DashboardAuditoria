@@ -31,9 +31,12 @@ describe("reportSemantics", () => {
         auditDepartmentDescription: "Qualidade",
         auditSectorDescription: "Processos",
         auditTypeAuditDescription: "VDA 6.3",
+        auditLevelDescription: "Nível A",
         ActivityStagesDescription: "Concluída",
         activityTupleCreatedIn: "2026-04-14 09:00:00",
         activityImplementedDate: "2026-04-18",
+        auditEndDate: "2026-04-13",
+        auditScore: 92,
       },
     ],
     "nao-conformidade": [
