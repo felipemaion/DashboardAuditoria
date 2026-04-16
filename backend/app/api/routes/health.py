@@ -26,7 +26,7 @@ def database_healthcheck() -> DatabaseHealthResponse:
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail={
                 "ok": False,
-                "message": str(error),
+                "message": "Database connection unavailable",
             },
         ) from error
 

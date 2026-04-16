@@ -6,6 +6,26 @@ from pymysql.err import OperationalError
 
 from backend.app.repositories.report_repository import fetch_report_rows
 
+# Sensitive PII fields that must never reach the frontend regardless of SQL origin.
+SENSITIVE_FIELDS_DENYLIST: frozenset[str] = frozenset(
+    {
+        "ResponsibleDocumentNumber",
+        "AuditorDocumentNumber",
+    }
+)
+
+# Legacy aliases with broken casing that were corrected in SQL. Strip them from
+# any payload so that downstream consumers never receive the old names.
+TYPO_ALIAS_DENYLIST: frozenset[str] = frozenset(
+    {
+        "auditAuditorPerSOnName",
+        "auditSECtorDescription",
+        "auditLevelDescriPTion",
+    }
+)
+
+FIELDS_TO_STRIP: frozenset[str] = SENSITIVE_FIELDS_DENYLIST | TYPO_ALIAS_DENYLIST
+
 
 @dataclass(frozen=True)
 class ReportDefinition:
@@ -92,11 +112,11 @@ def probe_report_definition(report_definition: ReportDefinition) -> ReportStatus
         if error.args and error.args[0] == 1142:
             return ReportStatus(
                 status="blocked_by_permissions",
-                blocked_reason=str(error.args[1]),
+                blocked_reason="Access denied",
             )
-        return ReportStatus(status="query_error", blocked_reason=str(error))
-    except Exception as error:
-        return ReportStatus(status="query_error", blocked_reason=str(error))
+        return ReportStatus(status="query_error", blocked_reason="Query execution error")
+    except Exception:
+        return ReportStatus(status="query_error", blocked_reason="Query execution error")
 
     return ReportStatus(status="available", blocked_reason=None)
 
@@ -142,3 +162,15 @@ def run_report(report_id: str, *, limit: int, offset: int) -> dict[str, Any]:
         "row_count": len(rows),
         "rows": rows,
     }
+
+
+def sanitize_report_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Strip sensitive PII fields and broken legacy aliases from every row.
+
+    This is the last line of defence before data leaves the service layer.
+    Even if an upstream SQL change or join accidentally reintroduces a
+    forbidden field, this function ensures it never reaches the frontend.
+    """
+    if not FIELDS_TO_STRIP:
+        return rows
+    return [{k: v for k, v in row.items() if k not in FIELDS_TO_STRIP} for row in rows]

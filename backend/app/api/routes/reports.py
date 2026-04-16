@@ -5,6 +5,7 @@ from backend.app.services.report_service import (
     get_report_catalog,
     list_report_definitions,
     run_report,
+    sanitize_report_rows,
 )
 
 router = APIRouter(prefix="/reports", tags=["reports"])
@@ -39,4 +40,5 @@ def get_report(
             detail="Report query execution failed.",
         ) from error
 
+    report_payload["rows"] = sanitize_report_rows(report_payload["rows"])
     return ReportResponse(**report_payload)
