@@ -609,7 +609,7 @@ function FunnelChart({
   const height = data.length * (rowHeight + gap) + 20;
   const maxCount = d3.max(data, (datum) => datum.count) ?? 1;
   const colorScale = d3
-    .scaleSequential(d3.interpolateBlues)
+    .scaleSequential(d3.interpolateCividis)
     .domain([0, maxCount]);
 
   return (
@@ -710,7 +710,7 @@ function HeatmapChart({
   const svgWidth = marginLeft + xLabels.length * cellSize + 10;
   const svgHeight = marginTop + yLabels.length * cellSize + 10;
   const maxValue = Math.max(1, ...matrix.flat());
-  const colorScale = d3.scaleSequential(d3.interpolateOranges).domain([0, maxValue]);
+  const colorScale = d3.scaleSequential(d3.interpolateCividis).domain([0, maxValue]);
 
   return (
     <ChartFrame title={title} subtitle={subtitle} tooltip={tooltip}>
