@@ -1,0 +1,5 @@
+TAREFA: [descrição objetiva]
+CONTEXTO: [arquivos relevantes, decisões anteriores]
+SAÍDA ESPERADA: [o que deve ser entregue]
+RESTRIÇÕES: [regras do AGENTS.md aplicáveis]
+DEPENDÊNCIAS: [o que este agente precisa receber antes de começar]
