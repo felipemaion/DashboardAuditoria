@@ -53,6 +53,7 @@ type SemanticChart = {
   alertThreshold?: number;
   useAverage?: boolean;
   bandType?: "vda-score";
+  aggregated?: boolean;
 };
 
 type SemanticCorrelation = {
@@ -85,6 +86,7 @@ export type ReportSemanticView = {
     alertThreshold?: number;
     useAverage?: boolean;
     bandType?: "vda-score";
+    aggregated?: boolean;
   }>;
   correlations: Array<{
     id: string;
@@ -339,6 +341,7 @@ const reportFieldInventory: Record<string, Record<string, string>> = {
     AuditingPlanningTypeAuditCodeDescription: "TypeAudit.TypeAudit_Description",
     AuditingPlanningAuditLevelCodeCode: "AuditingPlanning.AuditingPlanning_AuditLevelCode",
     AuditingPlanningAuditLevelCodeDescription: "AuditLevel.AuditLevel_Description",
+    Sector_Description: "Sector.Sector_Description",
   },
   "auditorias-realizadas": {
     AuditCode: "Audit.Audit_Code",
@@ -1346,7 +1349,18 @@ function createDefinition(options: {
   correlations?: Array<{ leftField: string; rightField: string; rationalePt: string; rationaleEn: string }>;
   extraCharts?: SemanticChart[];
   extraKpis?: SemanticKpi[];
+  skipGenericKpis?: boolean;
 }): ReportSemanticDefinition {
+  const genericKpis = options.skipGenericKpis
+    ? []
+    : buildGenericKpis({
+        statusField: options.statusField,
+        ownerField: options.ownerField,
+        dateField: options.dateField,
+        focusField: options.focusField,
+        reportTitle: options.title,
+      });
+
   return {
     title: options.title,
     overview: options.overview,
@@ -1356,14 +1370,8 @@ function createDefinition(options: {
     },
     concepts: options.concepts,
     kpis: [
-      ...buildGenericKpis({
-        statusField: options.statusField,
-        ownerField: options.ownerField,
-        dateField: options.dateField,
-        focusField: options.focusField,
-        reportTitle: options.title,
-      }),
       ...(options.extraKpis ?? []),
+      ...genericKpis,
     ],
     charts: [
       ...buildGenericCharts({
@@ -1457,6 +1465,104 @@ const reportSemantics: Record<string, ReportSemanticDefinition> = {
     ownerField: "ResponsibleName",
     dateField: "AuditingPlanningPlannedDate",
     focusField: "Sector_Description",
+    skipGenericKpis: true,
+    extraKpis: [
+      {
+        id: "aderencia-plano",
+        label: { "pt-BR": "% Aderência ao plano", "en-US": "% Plan adherence" },
+        description: {
+          "pt-BR":
+            "Considerada aderente quando realizada em até 30 dias após a data planejada (ou replanejada).",
+          "en-US":
+            "Counted as adherent when executed within 30 days after the planned (or rescheduled) date.",
+        },
+        source: "audits_kpi_base.PlannedDate × Audit.Audit_StartDate (Audit_Status=3)",
+        compute: () => "",
+      },
+      {
+        id: "replanejamento",
+        label: { "pt-BR": "% Replanejamento", "en-US": "% Replanning" },
+        description: {
+          "pt-BR":
+            "Percentual de auditorias do período cuja data foi replanejada antes da execução.",
+          "en-US":
+            "Share of audits in the period whose date was rescheduled before execution.",
+        },
+        source: "audits_kpi_base.ReplannedDate vs PlannedDate",
+        compute: () => "",
+      },
+      {
+        id: "auditorias-vencidas",
+        label: { "pt-BR": "Auditorias vencidas", "en-US": "Overdue audits" },
+        description: {
+          "pt-BR":
+            "Conta auditorias não realizadas após a data prevista (ou replanejada).",
+          "en-US":
+            "Counts audits not executed after the planned (or rescheduled) date.",
+        },
+        source: "audits_kpi_base (PlannedDate < hoje AND ExecutedAt IS NULL)",
+        compute: () => "",
+      },
+      {
+        id: "proximas-30-dias",
+        label: { "pt-BR": "Próximas 30 dias", "en-US": "Next 30 days" },
+        description: {
+          "pt-BR":
+            "Auditorias previstas nos próximos 30 dias; sinaliza alerta IATF 16949 §7.2.3 quando há responsável não atribuído.",
+          "en-US":
+            "Audits scheduled in the next 30 days; raises IATF 16949 §7.2.3 alert when an owner is unassigned.",
+        },
+        source: "audits_kpi_base (PlannedDate entre hoje e hoje+30d)",
+        compute: () => "",
+      },
+    ],
+    extraCharts: [
+      {
+        id: "aderencia-mensal",
+        chartType: "bar",
+        title: { "pt-BR": "Aderência ao Plano — evolução mensal", "en-US": "Plan Adherence — monthly evolution" },
+        description: {
+          "pt-BR": "Mostra a composição mensal das auditorias por faixa de pontualidade e a linha de % aderência com meta IATF 95%.",
+          "en-US": "Shows monthly audit composition by timeliness band plus the adherence % line with the 95% IATF target.",
+        },
+        categoryField: "month",
+        aggregated: true,
+      },
+      {
+        id: "replanejamento-scatter",
+        chartType: "bar",
+        title: { "pt-BR": "Replanejamento por Departamento", "en-US": "Replanning by Department" },
+        description: {
+          "pt-BR": "Scatter de departamentos por taxa de replanejamento vs deslocamento médio em dias, com histograma de faixas.",
+          "en-US": "Department scatter by replanning rate vs average shift in days, with range histogram.",
+        },
+        categoryField: "department",
+        aggregated: true,
+      },
+      {
+        id: "heatmap-setor-tipo",
+        chartType: "heatmap",
+        title: { "pt-BR": "Cobertura de Auditoria — Setor × Tipo", "en-US": "Audit Coverage — Sector × Type" },
+        description: {
+          "pt-BR": "Mapa de calor Cividis cruzando setores e tipos de auditoria; lacunas de cobertura em destaque.",
+          "en-US": "Cividis heatmap crossing sectors and audit types; coverage gaps highlighted.",
+        },
+        categoryField: "sector",
+        secondaryField: "type_audit",
+        aggregated: true,
+      },
+      {
+        id: "funil-execucao",
+        chartType: "funnel",
+        title: { "pt-BR": "Funil de Execução do Programa", "en-US": "Program Execution Funnel" },
+        description: {
+          "pt-BR": "Funil progressivo do programa de auditorias: planejadas → replanejadas → realizadas (≤30d) → score VDA ≥70.",
+          "en-US": "Progressive program funnel: planned → rescheduled → executed (≤30d) → VDA score ≥70.",
+        },
+        categoryField: "stage",
+        aggregated: true,
+      },
+    ],
     correlations: [
       {
         leftField: "AuditingPlanningDepartmentCodeDescription",
@@ -1952,15 +2058,15 @@ const reportSemantics: Record<string, ReportSemanticDefinition> = {
       Status_occurrence: fieldMeta("Status da ocorrência", "Occurrence status", "Status consolidado da ocorrência vinculada à atividade.", "Consolidated status of the occurrence linked to the activity.", "Derived SQL alias"),
     },
     concepts: [
-      { conceptKey: "owner", field: "ActivityResponsiblePersonName", label: { "pt-BR": "Responsável", "en-US": "Owner" } },
+      { conceptKey: "owner", field: "ResponsiblePersonName", label: { "pt-BR": "Responsável", "en-US": "Owner" } },
       { conceptKey: "date", field: "activityImplementedDate", label: { "pt-BR": "Implementada em", "en-US": "Implemented on" } },
     ],
-    ownerField: "ActivityResponsiblePersonName",
+    ownerField: "ResponsiblePersonName",
     dateField: "activityImplementedDate",
-    focusField: "ActivityResponsiblePersonName",
+    focusField: "ResponsiblePersonName",
     correlations: [
       {
-        leftField: "ActivityResponsiblePersonName",
+        leftField: "ResponsiblePersonName",
         rightField: "activityImplementedDate",
         rationalePt: "Ajuda a comparar responsáveis e ritmo de conclusão das atividades.",
         rationaleEn: "Helps compare owners and completion pace of activities.",
@@ -2037,6 +2143,7 @@ export function getReportSemanticView(
       alertThreshold: chart.alertThreshold,
       useAverage: chart.useAverage,
       bandType: chart.bandType,
+      aggregated: chart.aggregated,
     })),
     correlations: semantic.correlations.map((correlation) => ({
       id: correlation.id,
@@ -2052,6 +2159,19 @@ export function getReportTitle(reportId: string, locale: Locale, fallbackTitle: 
 }
 
 const defaultHiddenColumnsByReport: Record<string, string[]> = {
+  "auditorias-planejadas": [
+    "AuditingPlanningGuid",
+    "AuditingPlanningTupleExcluded",
+    "AuditingPlanningTupleCreatedIn",
+    "AuditingPlanningTupleModifiedIn",
+    "AuditingPlanningUserModification",
+    "AuditingPlanningDepartmentCodeCode",
+    "AuditingPlanningTypeAuditCodeCode",
+    "AuditingPlanningAuditLevelCodeCode",
+    "ResponsibleCode",
+    "CompanyCode",
+    "ContextCode",
+  ],
   "atividades-de-auditoria": [
     "activityGuid",
     "auditGuid",

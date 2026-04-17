@@ -725,6 +725,8 @@ function HeatmapChart({
   const svgHeight = marginTop + yLabels.length * cellSize + 10;
   const maxValue = Math.max(1, ...matrix.flat());
   const colorScale = d3.scaleSequential(d3.interpolateCividis).domain([0, maxValue]);
+  const textFillFor = (value: number) =>
+    d3.lab(colorScale(value)).l > 60 ? "#1e293b" : "rgba(243, 239, 231, 0.78)";
 
   return (
     <ChartFrame title={title} subtitle={subtitle} tooltip={tooltip}>
@@ -783,7 +785,8 @@ function HeatmapChart({
                 x={marginLeft + xi * cellSize + cellSize / 2}
                 y={marginTop + yi * cellSize + cellSize / 2 + 4}
                 textAnchor="middle"
-                className="chart-label"
+                fill={textFillFor(value)}
+                fontSize={11}
               >
                 {value}
               </text>

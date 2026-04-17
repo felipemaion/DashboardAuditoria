@@ -8,6 +8,7 @@ import {
   buildCrossReportInsights,
   buildCsv,
   buildFilterDefinitions,
+  isTechnicalField,
   paginateRows,
   type DateRangeFilter,
 } from "../lib/reportExplorer.testable";
@@ -19,6 +20,13 @@ import {
   getReportSemanticView,
   getReportTitle,
 } from "../lib/reportSemantics";
+import {
+  AdherenceChart,
+  CoverageHeatmap,
+  ExecutionFunnel,
+  ReplanningChart,
+  type ChartsResponse,
+} from "./charts";
 import { InfoTip } from "./InfoTip";
 import { ReportCharts } from "./ReportCharts";
 
@@ -44,6 +52,43 @@ type ReportResponse = {
   row_count: number;
   rows: ReportRecord[];
 };
+
+type KpiSeverity = "green" | "yellow" | "red" | "neutral";
+
+type ExecutiveKpiPayload = {
+  id: string;
+  severity: KpiSeverity;
+  value_percent?: number | null;
+  value_count?: number | null;
+  numerator?: number | null;
+  denominator?: number | null;
+  thresholds?: Record<string, number> | null;
+  unassigned_owner_count?: number | null;
+  iatf_unassigned_flag?: boolean | null;
+};
+
+type ExecutiveKpisResponse = {
+  report_id: string;
+  reference_date: string;
+  period_start: string;
+  period_end: string;
+  kpis: ExecutiveKpiPayload[];
+};
+
+const REPORTS_WITH_EXECUTIVE_KPIS: ReadonlySet<string> = new Set([
+  "auditorias-planejadas",
+]);
+
+function formatKpiPercent(value: number, locale: Locale): string {
+  return new Intl.NumberFormat(locale, {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  }).format(value).concat("%");
+}
+
+function formatKpiCount(value: number, locale: Locale): string {
+  return new Intl.NumberFormat(locale).format(value);
+}
 
 const PAGE_SIZE = 10;
 const LAYOUT_STORAGE_KEY = "dashboard-magna-layout";
@@ -238,27 +283,6 @@ function CorrelationList({
   );
 }
 
-function isTechnicalField(field: string, rows: ReportRecord[]): boolean {
-  if (/(?:Id|ID|Guid|UUID|guid|uuid)$/.test(field)) {
-    return true;
-  }
-
-  const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  const sampleValues = rows.slice(0, 20).map((row) => String(row[field] ?? "")).filter(Boolean);
-  if (sampleValues.length > 0 && sampleValues.every((v) => uuidPattern.test(v))) {
-    return true;
-  }
-
-  if ((field.endsWith("Id") || field.endsWith("_id")) && sampleValues.length > 0) {
-    const numericIdPattern = /^\d+$/;
-    if (sampleValues.every((v) => numericIdPattern.test(v))) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
 export function ReportExplorer({ locale }: { locale: Locale }) {
   const dictionary = translations[locale];
   const [layoutPreferences, setLayoutPreferences] = useState<LayoutPreferences>(readLayoutPreferences);
@@ -296,6 +320,28 @@ export function ReportExplorer({ locale }: { locale: Locale }) {
     queryFn: () => fetchJson<ReportResponse>(`/api/v1/reports/${deferredReportId}?limit=120`),
     enabled: Boolean(deferredReportId),
   });
+
+  const executiveKpisEnabled =
+    deferredReportId !== null && REPORTS_WITH_EXECUTIVE_KPIS.has(deferredReportId);
+  const executiveKpisQuery = useQuery({
+    queryKey: ["report-kpis", deferredReportId],
+    queryFn: () => fetchJson<ExecutiveKpisResponse>(`/api/v1/reports/${deferredReportId}/kpis`),
+    enabled: executiveKpisEnabled,
+  });
+  const executiveKpiById = useMemo(() => {
+    const map = new Map<string, ExecutiveKpiPayload>();
+    for (const kpi of executiveKpisQuery.data?.kpis ?? []) {
+      map.set(kpi.id, kpi);
+    }
+    return map;
+  }, [executiveKpisQuery.data]);
+
+  const executiveChartsQuery = useQuery({
+    queryKey: ["report-charts", deferredReportId],
+    queryFn: () => fetchJson<ChartsResponse>(`/api/v1/reports/${deferredReportId}/charts`),
+    enabled: executiveKpisEnabled,
+  });
+  const chartsCompact = typeof window !== "undefined" && window.innerWidth <= 480;
 
   const relatedReports = availableReports.filter((report) => report.report_id !== deferredReportId);
   const relatedQueries = useQueries({
@@ -344,12 +390,12 @@ export function ReportExplorer({ locale }: { locale: Locale }) {
 
     return [...keys];
   }, [filteredRows]);
-  const hiddenColumns = useMemo(
-    () =>
-      layoutPreferences.hiddenColumnsByReport[deferredReportId ?? ""] ??
-      getDefaultHiddenColumns(deferredReportId ?? ""),
-    [deferredReportId, layoutPreferences.hiddenColumnsByReport],
-  );
+  const hiddenColumns = useMemo(() => {
+    const reportId = deferredReportId ?? "";
+    const defaults = getDefaultHiddenColumns(reportId);
+    const stored = layoutPreferences.hiddenColumnsByReport[reportId] ?? [];
+    return [...new Set([...defaults, ...stored])];
+  }, [deferredReportId, layoutPreferences.hiddenColumnsByReport]);
   const columnWidths = useMemo(
     () => layoutPreferences.columnWidthsByReport[deferredReportId ?? ""] ?? {},
     [deferredReportId, layoutPreferences.columnWidthsByReport],
@@ -979,7 +1025,7 @@ export function ReportExplorer({ locale }: { locale: Locale }) {
                     {filteredRows.length}
                   </p>
                 </div>
-                <div className="kpi-grid">
+                <div className="kpi-grid" data-testid="kpi-grid">
                   {semanticView.kpis.map((kpi) => {
                     let vdaBadge: ReactNode = null;
                     if (kpi.id === "score-by-type-level") {
@@ -1000,13 +1046,70 @@ export function ReportExplorer({ locale }: { locale: Locale }) {
                       }
                     }
 
+                    const apiKpi = executiveKpiById.get(kpi.id);
+                    const severity: KpiSeverity = apiKpi?.severity ?? "neutral";
+                    const dataAttrs: Record<string, string> = {
+                      "data-kpi-id": kpi.id,
+                      "data-kpi-severity": severity,
+                    };
+
+                    let displayValue: ReactNode = kpi.value;
+                    let secondaryCount: ReactNode = null;
+                    let iatfFlagText: ReactNode = null;
+
+                    if (apiKpi) {
+                      if (
+                        apiKpi.value_percent !== null &&
+                        apiKpi.value_percent !== undefined
+                      ) {
+                        displayValue = formatKpiPercent(apiKpi.value_percent, locale);
+                      } else if (
+                        apiKpi.value_count !== null &&
+                        apiKpi.value_count !== undefined
+                      ) {
+                        displayValue = formatKpiCount(apiKpi.value_count, locale);
+                      } else {
+                        displayValue = dictionary.kpiSemDados;
+                      }
+
+                      if (
+                        kpi.id === "auditorias-vencidas" &&
+                        apiKpi.value_count !== null &&
+                        apiKpi.value_count !== undefined
+                      ) {
+                        dataAttrs["data-kpi-secondary-count"] = String(apiKpi.value_count);
+                        secondaryCount = (
+                          <small className="kpi-secondary">{apiKpi.value_count}</small>
+                        );
+                      }
+
+                      if (kpi.id === "proximas-30-dias") {
+                        const flagOn = apiKpi.iatf_unassigned_flag === true;
+                        dataAttrs["data-kpi-iatf-unassigned"] = flagOn ? "true" : "false";
+                        if (flagOn) {
+                          iatfFlagText = (
+                            <small className="kpi-iatf-flag">
+                              {dictionary.kpiIatfUnassignedFlag}
+                            </small>
+                          );
+                        }
+                      }
+                    }
+
                     return (
-                      <article className="kpi-card" key={kpi.id}>
+                      <article
+                        className={`kpi-card kpi-card-severity-${severity}`}
+                        data-testid={`kpi-card-${kpi.id}`}
+                        {...dataAttrs}
+                        key={kpi.id}
+                      >
                         <p className="kpi-label">
                           {kpi.label}
                           <InfoTip content={`${kpi.tooltip} | ${kpi.detail}`} label={kpi.label} />
                         </p>
-                        <strong className="kpi-value">{kpi.value}</strong>
+                        <strong className="kpi-value">{displayValue}</strong>
+                        {secondaryCount}
+                        {iatfFlagText}
                         {vdaBadge}
                       </article>
                     );
@@ -1117,7 +1220,7 @@ export function ReportExplorer({ locale }: { locale: Locale }) {
                     {dictionary.clearFilters}
                   </button>
                   {drillDownFilter ? (
-                    <div className="filter-chip">
+                    <div className="filter-chip" data-testid="drill-down-active">
                       <strong>{dictionary.drillDownApplied}</strong>
                       <span>
                         {getFieldMeta(deferredReportId ?? "", drillDownFilter.field)?.label[locale] ??
@@ -1137,8 +1240,43 @@ export function ReportExplorer({ locale }: { locale: Locale }) {
                   <h3>{dictionary.chartSectionTitle}</h3>
                   <p>{dictionary.reportNavigationDescription}</p>
                 </div>
+                {executiveChartsQuery.data?.charts ? (
+                  <div className="executive-chart-grid">
+                    <AdherenceChart
+                      title={semanticView.charts.find((c) => c.id === "aderencia-mensal")?.title ?? ""}
+                      data={executiveChartsQuery.data.charts["aderencia-mensal"]}
+                      labels={dictionary}
+                      locale={locale}
+                      onDrillDown={handleDrillDown}
+                      compact={chartsCompact}
+                    />
+                    <ReplanningChart
+                      title={semanticView.charts.find((c) => c.id === "replanejamento-scatter")?.title ?? ""}
+                      data={executiveChartsQuery.data.charts["replanejamento-scatter"]}
+                      labels={dictionary}
+                      locale={locale}
+                      onDrillDown={handleDrillDown}
+                    />
+                    <CoverageHeatmap
+                      title={semanticView.charts.find((c) => c.id === "heatmap-setor-tipo")?.title ?? ""}
+                      data={executiveChartsQuery.data.charts["heatmap-setor-tipo"]}
+                      labels={dictionary}
+                      locale={locale}
+                      onDrillDown={handleDrillDown}
+                    />
+                    <ExecutionFunnel
+                      title={semanticView.charts.find((c) => c.id === "funil-execucao")?.title ?? ""}
+                      data={executiveChartsQuery.data.charts["funil-execucao"]}
+                      labels={dictionary}
+                      locale={locale}
+                      onDrillDown={handleDrillDown}
+                    />
+                  </div>
+                ) : null}
                 <div className="chart-grid">
-                  {semanticView.charts.map((suggestion) => (
+                  {semanticView.charts
+                    .filter((s) => !["aderencia-mensal", "replanejamento-scatter", "heatmap-setor-tipo", "funil-execucao"].includes(s.id))
+                    .map((suggestion) => (
                     <ReportCharts
                       reportId={deferredReportId ?? ""}
                       key={`${deferredReportId ?? "unknown"}-${suggestion.id}`}

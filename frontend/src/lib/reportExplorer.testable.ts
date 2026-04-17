@@ -350,6 +350,31 @@ export function applyReportFiltersWithDateRange(
   });
 }
 
+export function isTechnicalField(field: string, rows: ReportRecord[]): boolean {
+  if (/(?:Id|ID|Guid|UUID|guid|uuid)$/.test(field)) {
+    return true;
+  }
+
+  if (/Tuple|UserModification|DocumentNumber/.test(field)) {
+    return true;
+  }
+
+  const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const sampleValues = rows.slice(0, 20).map((row) => String(row[field] ?? "")).filter(Boolean);
+  if (sampleValues.length > 0 && sampleValues.every((v) => uuidPattern.test(v))) {
+    return true;
+  }
+
+  if ((field.endsWith("Id") || field.endsWith("_id")) && sampleValues.length > 0) {
+    const numericIdPattern = /^\d+$/;
+    if (sampleValues.every((v) => numericIdPattern.test(v))) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 export function paginateRows(rows: ReportRecord[], page: number, pageSize: number): ReportRecord[] {
   const start = Math.max(0, (page - 1) * pageSize);
   return rows.slice(start, start + pageSize);

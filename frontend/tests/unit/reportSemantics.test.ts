@@ -78,7 +78,7 @@ describe("reportSemantics", () => {
     ],
     "atividades-completas": [
       {
-        ActivityResponsiblePersonName: "Diego",
+        ResponsiblePersonName: "Diego",
         activityImplementedDate: "2026-04-14",
       },
     ],
@@ -193,6 +193,8 @@ describe("reportSemantics", () => {
       }
 
       for (const chart of semanticView.charts) {
+        if (chart.aggregated) continue;
+
         expect(
           rowKeys.has(chart.categoryField),
           `Chart category field "${chart.categoryField}" should exist in ${reportId}`,

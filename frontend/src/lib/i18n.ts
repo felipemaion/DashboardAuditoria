@@ -135,6 +135,30 @@ type Dictionary = {
   kpiFunnel: string;
   kpiHeatmap: string;
   kpiTopMachines: string;
+  kpiSemDados: string;
+  kpiIatfUnassignedFlag: string;
+  chartEmptyState: string;
+  chartEmptyHint: string;
+  chartInsightDefault: string;
+  heatmapToggle12m: string;
+  heatmapToggle3y: string;
+  heatmapSmallSample: string;
+  heatmapAdherenceLabel: string;
+  heatmapGapLabel: string;
+  heatmapFilterSector: string;
+  heatmapFilterType: string;
+  heatmapFilterAll: string;
+  heatmapFilterClear: string;
+  heatmapZoomIn: string;
+  heatmapZoomOut: string;
+  heatmapZoomReset: string;
+  heatmapSelectPrompt: string;
+  heatmapShowAll: string;
+  funnelFootnote: string;
+  funnelReplannedAnnotation: string;
+  funnelVdaScoreLabel: string;
+  scatterAnticipated: string;
+  scatterDelayed: string;
 };
 
 export const translations: Record<Locale, Dictionary> = {
@@ -281,6 +305,30 @@ export const translations: Record<Locale, Dictionary> = {
     kpiFunnel: "Funil de estágios",
     kpiHeatmap: "Pares setor × nível",
     kpiTopMachines: "Máquina principal",
+    kpiSemDados: "Sem dados",
+    kpiIatfUnassignedFlag: "Atenção IATF 16949 §7.2.3: responsável não atribuído",
+    chartEmptyState: "Sem dados no período selecionado",
+    chartEmptyHint: "amplie o período ou remova filtros",
+    chartInsightDefault: "Visão analítica do período selecionado",
+    heatmapToggle12m: "12 meses — operacional",
+    heatmapToggle3y: "3 anos — IATF 9.2.2.2 cobertura trienal",
+    heatmapSmallSample: "amostra muito pequena",
+    heatmapAdherenceLabel: "% aderência",
+    heatmapGapLabel: "gap",
+    heatmapFilterSector: "Setor",
+    heatmapFilterType: "Tipo",
+    heatmapFilterAll: "Todos",
+    heatmapFilterClear: "Limpar filtros",
+    heatmapZoomIn: "Ampliar",
+    heatmapZoomOut: "Reduzir",
+    heatmapZoomReset: "Resetar zoom",
+    heatmapSelectPrompt: "Selecione setores ou tipos para visualizar o mapa de cobertura",
+    heatmapShowAll: "Mostrar todos",
+    funnelFootnote: "Auditorias realizadas fora da tolerância de 30 dias não contam para esta etapa",
+    funnelReplannedAnnotation: "Replanejadas",
+    funnelVdaScoreLabel: "Score ≥ 70 (VDA B ou superior)",
+    scatterAnticipated: "Antecipadas",
+    scatterDelayed: "Adiadas",
   },
   "en-US": {
     appEyebrow: "Magna Analytics Platform",
@@ -425,5 +473,29 @@ export const translations: Record<Locale, Dictionary> = {
     kpiFunnel: "Workflow funnel",
     kpiHeatmap: "Sector × level pairs",
     kpiTopMachines: "Top machine",
+    kpiSemDados: "No data",
+    kpiIatfUnassignedFlag: "IATF 16949 §7.2.3 alert: unassigned owner",
+    chartEmptyState: "No data in selected period",
+    chartEmptyHint: "expand the period or remove filters",
+    chartInsightDefault: "Analytical view of the selected period",
+    heatmapToggle12m: "12 months — operational",
+    heatmapToggle3y: "3 years — IATF 9.2.2.2 triennial coverage",
+    heatmapSmallSample: "very small sample",
+    heatmapAdherenceLabel: "% adherence",
+    heatmapGapLabel: "gap",
+    heatmapFilterSector: "Sector",
+    heatmapFilterType: "Type",
+    heatmapFilterAll: "All",
+    heatmapFilterClear: "Clear filters",
+    heatmapZoomIn: "Zoom in",
+    heatmapZoomOut: "Zoom out",
+    heatmapZoomReset: "Reset zoom",
+    heatmapSelectPrompt: "Select sectors or types to view the coverage map",
+    heatmapShowAll: "Show all",
+    funnelFootnote: "Audits executed outside the 30-day tolerance do not count for this stage",
+    funnelReplannedAnnotation: "Replanned",
+    funnelVdaScoreLabel: "Score ≥ 70 (VDA B or higher)",
+    scatterAnticipated: "Anticipated",
+    scatterDelayed: "Delayed",
   },
 };
