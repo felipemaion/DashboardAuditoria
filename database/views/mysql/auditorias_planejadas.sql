@@ -31,3 +31,4 @@ LEFT JOIN `TypeAudit` t5 ON t5.`TypeAudit_Code` = a.`AuditingPlanning_TypeAuditC
 LEFT JOIN `AuditLevel` t6 ON t6.`AuditLevel_Code` = a.`AuditingPlanning_AuditLevelCode`
 LEFT JOIN AuditingPlanningSector t7 ON t7.`AuditingPlanning_Code`= a.`AuditingPlanning_Code`
 LEFT JOIN `Sector` t8 ON  t8.`Sector_Code` = t7.`AuditingPlanningSector_Code`
+WHERE a.`AuditingPlanning_TupleExcluded` = 0

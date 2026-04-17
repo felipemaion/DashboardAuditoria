@@ -50,3 +50,4 @@ LEFT JOIN `IndustrialMachine` t8 ON t8.`IndustrialMachine_Code` = a.`Audit_Indus
 LEFT JOIN `AuditingPlanning` t9 ON t9.`AuditingPlanning_Code` = a.`Audit_AuditingPlanningCode`
 LEFT JOIN `AuditLevel` t10 ON t10.`AuditLevel_Code` = a.`AuditLevel_Code`
 WHERE a.`Audit_Status`=3
+  AND a.`Audit_TupleExcluded` = 0
