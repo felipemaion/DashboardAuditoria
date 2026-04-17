@@ -8,7 +8,7 @@ from backend.app.core.config import get_settings
 from backend.app.db.connection import build_mysql_connection_options
 
 
-def fetch_report_rows(query: str, *, limit: int, offset: int) -> list[dict[str, Any]]:
+def _build_connection_options() -> dict[str, Any]:
     settings = get_settings()
     connection_options = build_mysql_connection_options(
         host=settings.mysql_host,
@@ -19,10 +19,28 @@ def fetch_report_rows(query: str, *, limit: int, offset: int) -> list[dict[str, 
         ssl_mode=settings.mysql_ssl_mode,
     )
     connection_options["cursorclass"] = DictCursor
+    return connection_options
 
+
+def fetch_report_rows(query: str, *, limit: int, offset: int) -> list[dict[str, Any]]:
+    connection_options = _build_connection_options()
     with pymysql.connect(**connection_options) as connection:
         with connection.cursor() as cursor:
             cursor.execute(query, _build_query_parameters(limit=limit, offset=offset))
+            rows = cursor.fetchall()
+
+    return list(rows)
+
+
+def fetch_rows(query: str, parameters: Sequence[Any] = ()) -> list[dict[str, Any]]:
+    """Execute a parameterized query and return all rows (no pagination)."""
+    connection_options = _build_connection_options()
+    with pymysql.connect(**connection_options) as connection:
+        with connection.cursor() as cursor:
+            if parameters:
+                cursor.execute(query, tuple(parameters))
+            else:
+                cursor.execute(query)
             rows = cursor.fetchall()
 
     return list(rows)
